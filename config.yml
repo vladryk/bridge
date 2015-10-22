@@ -1,0 +1,22 @@
+
+# State storage path
+storage_dir: /tmp
+
+# JQL for matching issues
+jira_issue_jql: project = MY
+
+# Issue field used to hold reference to the SFDC case ID
+jira_reference_field: customfield_10100
+
+jira_priority_map:
+  Blocker: normal
+  Critical: normal
+  Major: normal
+  Minor: low
+  Trivial: low
+
+jira_fallback_priority: normal
+
+jira_solved_statuses:
+  - Closed
+  - Resolved
