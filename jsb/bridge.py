@@ -118,7 +118,9 @@ class Bridge(object):
 
             self.sfdc_client.create_ticket_comment(data)
 
-            # self.store.sadd('seen_jira_comments', comment.id)
+            self.store.sadd('seen_jira_comments', comment.id)
 
-    def sync_comments_to_jira(self, issue, tickets):
-        pass
+    def sync_comments_to_jira(self, issue, ticket):
+        comments = self.sfdc_client.ticket_comments(ticket['Id'])
+        for i in comments:
+            print(i)

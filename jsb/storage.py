@@ -2,6 +2,7 @@ import os
 
 import yaml
 
+
 class Store(object):
     def __init__(self, backend=None):
         if not backend:
@@ -56,14 +57,14 @@ class Store(object):
         self.save_to_backend()
         return True
 
-    def sismember(self, key, value):
+    def sismember(self, key, value):  # FIXME
         if key not in self.data:
             return False
 
         return value in self.data[key]
 
     def srem(self, key, value):
-        if key not in data:
+        if key not in self.data:
             return False
 
         s = self.data[key]
@@ -77,12 +78,14 @@ class Store(object):
     def save_to_backend(self):
         self.backend.save(self.data)
 
+
 class Backend(object):
     def load(self):
         pass
 
     def save(self, data):
         pass
+
 
 class FileBackend(Backend):
     def __init__(self, path):
@@ -98,6 +101,7 @@ class FileBackend(Backend):
     def save(self, data):
         with open(self.path, 'w') as fp:
             yaml.dump(data, fp, default_flow_style=False)
+
 
 class InMemoryBackend(Backend):
     def __init__(self):

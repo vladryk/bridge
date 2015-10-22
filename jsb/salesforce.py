@@ -21,8 +21,7 @@ class OAuth2(object):
             'password': self.password,
         }
 
-        url = '{}/services/oauth2/token'.format(self.auth_url)  # original '{}/services/oauth2/token'
-        # import pdb, sys; p = pdb.Pdb(stdout=sys.__stdout__); p.set_trace()
+        url = '{}/services/oauth2/token'.format(self.auth_url)
         response = requests.post(url, data=data)
         response.raise_for_status()
 
