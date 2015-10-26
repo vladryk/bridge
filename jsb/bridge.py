@@ -105,7 +105,7 @@ class Bridge(object):
                 LOG.debug('Skipping my own JIRA comment: %s', comment.id)
                 continue
 
-            if self.store.sismember('seen_jira_comments', comment.id):
+            if self.store.sismember('seen_comments_id', comment.id):
                 LOG.debug('Skipping seen JIRA comment: %s', comment.id)
                 continue
 
@@ -116,11 +116,22 @@ class Bridge(object):
                 'related_id__c': ticket['Id'],
             }
 
-            self.sfdc_client.create_ticket_comment(data)
+            ticket_comment = self.sfdc_client.create_ticket_comment(data)
 
-            self.store.sadd('seen_jira_comments', comment.id)
+            self.store.sadd('seen_comments_id', comment.id)
+            self.store.sadd('seen_comments_id', ticket_comment['id'])
 
     def sync_comments_to_jira(self, issue, ticket):
         comments = self.sfdc_client.ticket_comments(ticket['Id'])
-        for i in comments:
-            print(i)
+        for comment in comments:
+            if self.store.sismember('seen_comments_id', comment['Id']):
+                LOG.debug('Skipping seen SalesForce comment: %s', comment['Id'])
+                continue
+
+            LOG.info('Copying SalesForce comment to JIRA issue: %s', comment['Id'])
+            issue_comment = self.jira_client.add_comment(issue, comment['Comment__c'])
+
+            self.store.sadd('seen_comments_id', comment['Id'])
+            self.store.sadd('seen_comments_id', issue_comment.id)
+            print(comment)
+
