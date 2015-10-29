@@ -44,6 +44,9 @@ class Client(object):
     def update_ticket(self, id, data):
         return self.patch('/services/data/v35.0/sobjects/proxyTicket__c/{}'.format(id), json=data)
 
+    def update_comment(self, id, data):
+        return self.patch('/services/data/v35.0/sobjects/proxyTicketComment__c/{}'.format(id), json=data)
+
     def create_ticket_comment(self, data):
         return self.post('/services/data/v35.0/sobjects/proxyTicketComment__c', json=data).json()
 
@@ -51,7 +54,11 @@ class Client(object):
         return self.get('/services/data/v35.0/sobjects/Environment__c/{}'.format(id)).json()
 
     def ticket_comments(self, ticket_id):
-        return self.search("SELECT Comment__c, CreatedById, Id FROM proxyTicketComment__c WHERE related_id__c='{}'".format(ticket_id))
+        return self.search("SELECT Comment__c, CreatedById, external_id__c, Id FROM proxyTicketComment__c WHERE related_id__c='{}'".format(ticket_id))
+
+    def ticket_comment(self, comment_id):
+        #return self.search("SELECT Comment__c, CreatedById, Id FROM proxyTicketComment__c WHERE external_id__c='{}'".format(comment_id))
+        return self.get('/services/data/v35.0/query', params=dict(q="SELECT Comment__c, CreatedById, Id FROM proxyTicketComment__c WHERE external_id__c='{}'".format(comment_id))).json()
 
     def search(self, query):
         response = self.get('/services/data/v35.0/query', params=dict(q=query)).json()

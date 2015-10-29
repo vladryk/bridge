@@ -1,3 +1,4 @@
 requests
 jira
 pyyaml
+python-dateutil

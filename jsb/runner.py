@@ -7,7 +7,7 @@ from jira import JIRA
 import yaml
 
 #from jsb import LOG, salesforce
-from __init__ import LOG
+from __init__ import LOG  # FIXME
 from salesforce import OAuth2, Client
 from bridge import Bridge
 from storage import FileBackend, Store
@@ -26,6 +26,7 @@ def main():
     parser = ArgumentParser()
     parser.add_argument('-c', '--config-file', default='config.yml')
     parser.add_argument('-d', '--debug', action='store_true')
+    parser.add_argument('-Q', '--query')
 
     args = parser.parse_args()
 
@@ -52,6 +53,10 @@ def main():
     store = Store(FileBackend(storage_path))
 
     bridge = Bridge(sfdc_client, jira_client, store, config)
+
+    if args.query:
+        bridge.issue_jql = args.query
+
     bridge.sync_issues()
 
 if __name__ == '__main__':

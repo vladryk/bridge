@@ -1,5 +1,7 @@
+from dateutil.parser import parse
 # from jsb import LOG
-from __init__ import LOG
+from __init__ import LOG  # FIXME
+
 
 class Bridge(object):
     def __init__(self, sfdc_client, jira_client, store, config):
@@ -15,11 +17,13 @@ class Bridge(object):
         self.jira_reference_field = config['jira_reference_field']
 
         self.jira_identity = jira_client.current_user()
+        self.jira_solved_statuses = config['jira_solved_statuses']
 
     def sync_issues(self):
         LOG.debug('Querying JIRA: %s', self.issue_jql)
-        for issue in self.jira_client.search_issues(self.issue_jql,
-                                                    fields='assignee,attachment,comment,*navigable'):
+        for issue in self.jira_client.search_issues(
+                self.issue_jql, fields='assignee,attachment,comment,*navigable'):
+
             try:
                 self.sync_issue(issue)
             except KeyboardInterrupt:
@@ -29,7 +33,7 @@ class Bridge(object):
                 LOG.exception('Failed to sync issue: %s', issue.key)
 
         LOG.debug('Sync finished')
-    
+
     def sync_issue(self, issue):
         LOG.debug('Syncing JIRA issue: %s', issue.key)
         ticket = self.ensure_ticket(issue)
@@ -40,40 +44,70 @@ class Bridge(object):
         self.sync_jira_reference(issue, ticket)
         self.sync_comments_from_jira(issue, ticket)
         self.sync_comments_to_jira(issue, ticket)
+        self.sync_subject_description(issue, ticket)
 
         self.sync_status(issue, ticket)
 
-    def ensure_ticket(self, issue):
+    def ensure_ticket(self, issue):  # FIXME
+        ticket = None
         ticket_id = self.store.hget('issue_to_ticket_id', issue.key)
         if not ticket_id:
             ticket_id = getattr(issue.fields, self.jira_reference_field)
 
+        if ticket_id:
+            ticket = self.sfdc_client.ticket(ticket_id)
         # TODO Search Salesforce proxyTickets by external ID once its changed to string
 
-        if not ticket_id:
+        if not ticket:
             if not self.is_issue_eligible(issue):
                 LOG.debug('Skipping previously untracked, ineligible issue')
-                return
+                return False
 
+            LOG.info('Creating SF ticket for JIRA issue')
             ticket_id = self.create_ticket(issue)
-        
+        elif ticket['Status__c'] == 'closed':
+            if not self.is_issue_eligible(issue):
+                LOG.debug('Skipping previously closed, ineligible issue')
+                return False
+
+            LOG.info('Creating followup SF ticket for JIRA issue')
+            ticket = self.create_followup_ticket(issue, ticket)
+
         self.store.hset('issue_to_ticket_id', issue.key, ticket_id)
 
         return self.sfdc_client.ticket(ticket_id)
 
     def is_issue_eligible(self, issue):
+        """
+        Determines if an untracked or previously closed issue is eligible for creation in Zendesk
+
+        :param issue: `jira.resources.Issue` object
+        :return: Whether or not issue is eligible
+        """
+        if issue.fields.status.name in self.jira_solved_statuses:
+            # Ignore issues that have already been marked solved
+            return False
+
+        # if issue.fields.assignee and issue.fields.assignee.name != self.jira_identity:  # FIXME
+        #     # Ignore issues that have already been assigned to someone other than us
+        #     return False
+
         return True
 
     def create_ticket(self, issue):
-        LOG.info('Creating ticket for issue')
-
+        LOG.info('Trying to create ticket for issue %s', issue.key)
+        assignee_name = getattr(issue.fields.assignee, 'name', '')
+        reporter = getattr(issue.fields.reporter, 'displayName', '')
         data = {
             'Subject__c': issue.fields.summary,
             'Description__c': issue.fields.description,
-            # 'External_id__c': issue.key, # TODO External ID needs to be string
+            'External_id__c': issue.key,  # TODO External ID needs to be string
+            'Requester__c': reporter,
+            'Assignee__c': assignee_name
         }
 
         result = self.sfdc_client.create_ticket(data)
+        LOG.info('Successful create ticket %s,  for issue %s', result['id'], issue.key)
 
         return result['id']
 
@@ -108,30 +142,68 @@ class Bridge(object):
             if self.store.sismember('seen_comments_id', comment.id):
                 LOG.debug('Skipping seen JIRA comment: %s', comment.id)
                 continue
+            else:
+                comment_from_sf = self.sfdc_client.ticket_comment(comment.id)  # FIXME need get all comments
+                if comment_from_sf['totalSize'] != 0:
+                    LOG.debug('Skipping seen SF comment: %s', comment.id)
+                    self.store.sadd('seen_comments_id', comment.id)
+                    continue
 
             LOG.info('Copying JIRA comment to SFDC: %s', comment.id)
 
             data = {
                 'Comment__c': comment.body,
                 'related_id__c': ticket['Id'],
+                'external_id__c': comment.id
             }
 
-            ticket_comment = self.sfdc_client.create_ticket_comment(data)
-
+            self.sfdc_client.create_ticket_comment(data)
             self.store.sadd('seen_comments_id', comment.id)
-            self.store.sadd('seen_comments_id', ticket_comment['id'])
 
     def sync_comments_to_jira(self, issue, ticket):
         comments = self.sfdc_client.ticket_comments(ticket['Id'])
         for comment in comments:
-            if self.store.sismember('seen_comments_id', comment['Id']):
+            if self.store.sismember('seen_comments_id', comment['external_id__c']):
                 LOG.debug('Skipping seen SalesForce comment: %s', comment['Id'])
                 continue
 
-            LOG.info('Copying SalesForce comment to JIRA issue: %s', comment['Id'])
+            LOG.info(
+                'Copying SalesForce comment to JIRA issue: %s',
+                comment['Id'])
+
             issue_comment = self.jira_client.add_comment(issue, comment['Comment__c'])
 
-            self.store.sadd('seen_comments_id', comment['Id'])
-            self.store.sadd('seen_comments_id', issue_comment.id)
-            print(comment)
+            data = {
+                'external_id__c': issue_comment.id
+            }
 
+            LOG.info(
+                'Update SalesForce comment with JIRA comment-id: %s',
+                issue_comment.id)
+
+            self.sfdc_client.update_comment(comment['Id'], data)
+            self.store.sadd('seen_comments_id', issue_comment.id)
+
+    def sync_subject_description(self, issue, ticket):
+        if (issue.fields.description != ticket['Description__c'] or
+                    issue.fields.summary != ticket['Subject__c']):
+
+            parse_issue_time = parse(issue.fields.updated)
+            utc_time_issue = parse_issue_time.utctimetuple()
+            parse_ticket_time = parse(ticket['LastModifiedDate'])
+            utc_time_ticket = parse_ticket_time.utctimetuple()
+
+            if utc_time_issue >= utc_time_ticket:
+                LOG.info(
+                    'Update SalesForce subject, description. Ticket %s',
+                    ticket['Id'])
+                self.sfdc_client.update_ticket(
+                    ticket['Id'],
+                    {'Description__c': issue.fields.description,
+                     'Subject__c': issue.fields.summary})
+            else:
+                LOG.info(
+                    'Update Jira summary, description. Jira ticket %s',
+                    issue.key)
+                issue.update(fields={'description': ticket['Description__c'],
+                                     'summary': ticket['Subject__c']})
