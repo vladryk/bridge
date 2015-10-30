@@ -1,21 +1,3 @@
-# Salesforce auth
-sfdc_auth_url: https://test.salesforce.com
-sfdc_client_id: 3MVG9Gmy2zmPB01qbBrrZy4q6xgFiKKDHK4rudSgmwrU2HeJuXZMD0p6aEkpgjFdqkzCdl9XFEzA3Ei4gbNYM
-sfdc_client_secret: 2553619456187699227
-sfdc_username: vokhrimenko@mirantis.com.scloud
-sfdc_password: hOjYX7PYkNm9mexoHP3I8Rgn7GPJ1X01z
-
-#sfdc_auth_url: https://eu5.salesforce.com
-#sfdc_client_id: 3MVG9Rd3qC6oMalU1poJL6RWCyzlgz.nG0Ulbtm8XOuPkKeqsHUlcji.qcsOEO0CNrZyvP3tNyMnpk0Hjv5Y7
-#sfdc_client_secret: 1391110433976869704
-#sfdc_username: vokhrimenko@mirantis.com
-#sfdc_password: hOjYX7PY
-
-# JIRA auth
-jira_url: http://localhost:8070
-jira_username: vokhrimenko@mirantis.com
-jira_password: hOjYX7PY
-
 # State storage path
 storage_dir: /tmp
 
