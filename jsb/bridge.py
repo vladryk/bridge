@@ -2,6 +2,8 @@ from dateutil.parser import parse
 # from jsb import LOG
 from __init__ import LOG  # FIXME
 
+ACTION_HANDLER_FORMAT = 'handle_{}'
+
 
 class Bridge(object):
     def __init__(self, sfdc_client, jira_client, store, config):
@@ -18,6 +20,9 @@ class Bridge(object):
 
         self.jira_identity = jira_client.current_user()
         self.jira_solved_statuses = config['jira_solved_statuses']
+
+        self.jira_status_actions = self.parse_status_action_defs(config['jira_status_actions'])
+        self.zd_status_actions = self.parse_status_action_defs(config['zd_status_actions'])
 
     def sync_issues(self):
         LOG.debug('Querying JIRA: %s', self.issue_jql)
@@ -94,6 +99,9 @@ class Bridge(object):
 
         return True
 
+    def create_followup_ticket(self, issue, previous_ticket):
+        pass
+
     def create_ticket(self, issue):
         LOG.info('Trying to create ticket for issue %s', issue.key)
         assignee_name = getattr(issue.fields.assignee, 'name', '')
@@ -103,7 +111,8 @@ class Bridge(object):
             'Description__c': issue.fields.description,
             'External_id__c': issue.key,  # TODO External ID needs to be string
             'Requester__c': reporter,
-            'Assignee__c': assignee_name
+            'Assignee__c': assignee_name,
+            'Status__c': 'new'
         }
 
         result = self.sfdc_client.create_ticket(data)
@@ -129,9 +138,6 @@ class Bridge(object):
         if getattr(issue.fields, self.jira_reference_field) != ticket['Id']:
             LOG.info('Updating JIRA reference for ticket: %s', ticket['Id'])
             issue.update(fields={self.jira_reference_field: ticket['Id']})
-
-    def sync_status(self, issue, ticket):
-        pass
 
     def sync_comments_from_jira(self, issue, ticket):
         for comment in issue.fields.comment.comments:
@@ -207,3 +213,197 @@ class Bridge(object):
                     issue.key)
                 issue.update(fields={'description': ticket['Description__c'],
                                      'summary': ticket['Subject__c']})
+
+    def sync_status(self, issue, ticket):
+        """
+        Transitions the status on both sides when out of sync, with preference
+        for the JIRA status
+
+        :param ctx: `SyncContext` object
+        """
+        last_seen_jira_status = self.store.get('last_seen_jira_status:{}'.format(issue.key))
+        last_seen_zd_status = self.store.get('last_seen_zd_status:{}'.format(ticket['Id']))
+
+        LOG.debug('JIRA status: %s; SF status: %s', issue.fields.status.name, ticket['Status__c'])
+
+        #owned = issue.fields.assignee.name == self.jira_identity
+        owned = True
+        if not owned:
+            LOG.debug('Issue not owned by us, action defs without "force" will not apply')
+
+        jira_status_changed = last_seen_jira_status != issue.fields.status.name
+        if jira_status_changed:
+            LOG.debug('JIRA status changed')
+
+        zd_status_changed = last_seen_zd_status != ticket['Status__c']
+        if zd_status_changed:
+            LOG.debug('Zendesk status changed')
+
+        self.process_status_actions(issue, ticket, self.jira_status_actions, jira_status_changed, owned)
+        self.process_status_actions(issue, ticket, self.zd_status_actions, zd_status_changed, owned)
+
+        self.store.set('last_seen_jira_status:{}'.format(issue.key), issue.fields.status.name)
+        self.store.set('last_seen_zd_status:{}'.format(ticket['Id']), ticket['Status__c'])
+
+    def process_status_actions(self, issue, ticket, action_defs, changed, owned):
+        """
+        Runs matching status action definitions against an issue/ticket pair
+
+        :param action_defs: list of `ActionDefinition` objects
+        :param changed: True if status has changed
+        :param owned: True if issue is owned by bot
+        """
+        while True:
+            match = False
+
+            for action_def in action_defs:
+                if not owned and not action_def.force:
+                    continue
+
+                if not (issue.fields.status.name in action_def.jira_status and
+                            ticket['Status__c'] in action_def.zd_status):
+                    continue
+
+                LOG.debug('Matched action def: %s', action_def.description)
+                match = True
+
+                for action in action_def.actions:
+                    if action.only_once and not changed:
+                        LOG.debug('Skipping action marked only_once: %s', action.description)
+                        continue
+
+                    try:
+                        LOG.info('Performing action: %s', action.description)
+                        action.handle(ctx)
+                    except:
+                        LOG.exception('Failed to perform action')
+                        return
+
+                break
+
+            if not match:
+                LOG.debug('No action defs matched')
+                break
+
+    def parse_status_action_defs(self, action_defs):
+        """
+        Parses a list of status action definitions
+
+        :param action_defs: list of dicts
+        :return: list of `ActionDefinition` objects
+        """
+        results = []
+
+        for action_def in action_defs:
+            actions = []
+
+            for action in action_def['actions']:
+                # pop is used so remaining dict entries can be passed directly to action
+                handler_name = ACTION_HANDLER_FORMAT.format(action.pop('type'))
+                description = action.pop('description')
+                only_once = action.pop('only_once', False)
+
+                actions.append(Action(
+                    handler=getattr(self, handler_name),
+                    description=description,
+                    params=action,
+                    only_once=only_once,
+                ))
+
+            results.append(ActionDefinition(
+                jira_status=action_def['jira_status'],
+                zd_status=action_def['zd_status'],
+                actions=actions,
+                description=action_def['description'],
+                force=action_def.get('force', False),
+            ))
+
+        return results
+
+    def handle_update_ticket(self, ctx, **kwargs):
+        pass
+        # """
+        # Handler for the `update_ticket` action type
+        #
+        # :param ctx: `SyncContext` object
+        # """
+        # ctx.ticket = ctx.ticket.update(**kwargs)
+
+    def handle_add_ticket_tags(self, ctx, tags, **kwargs):
+        pass
+        # """
+        # Handler for the `add_ticket_tags` action type
+        #
+        # :param ctx: `SyncContext` object
+        # :param tags: list of tag names to add
+        # """
+        # absent_tags = []
+        # for tag in tags:
+        #     if tag not in ctx.ticket.tags:
+        #         absent_tags.append(tag)
+        #
+        # if absent_tags:
+        #     ctx.ticket.add_tags(*absent_tags)
+        #     self.refresh_ticket(ctx)
+
+    def handle_remove_ticket_tags(self, ctx, tags, **kwargs):
+        pass
+        # """
+        # Handler for the `remove_ticket_tags` action type
+        #
+        # :param ctx: `SyncContext` object
+        # :param tags: list of tag names to remove
+        # """
+        # present_tags = []
+        # for tag in tags:
+        #     if tag in ctx.ticket.tags:
+        #         present_tags.append(tag)
+        #
+        # if present_tags:
+        #     ctx.ticket.remove_tags(*present_tags)
+        #     self.refresh_ticket(ctx)
+
+    def handle_transition_issue(self, ctx, name, **kwargs):
+        pass
+        # """
+        # Handler for the `transition_issue` action type
+        #
+        # :param ctx: `SyncContext` object
+        # :param name: name of the transition to perform
+        # """
+        # params = kwargs.copy()
+        #
+        # transitions = self.jira_client.transitions(ctx.issue)
+        # transition_id = None
+        # for transition in transitions:
+        #     if transition['name'] == name:
+        #         transition_id = transition['id']
+        #         break
+        #
+        # if not transition_id:
+        #     raise ValueError('Could not find transition: %s', name)
+        #
+        # self.jira_client.transition_issue(ctx.issue, transition_id, fields=params)
+        # self.refresh_issue(ctx)
+
+class ActionDefinition(object):
+    def __init__(self, jira_status, zd_status, actions, description, force):
+        self.jira_status = jira_status
+        self.zd_status = zd_status
+        self.actions = actions
+        self.description = description
+        self.force = force
+
+
+class Action(object):
+    def __init__(self, handler, params, description, only_once):
+        self.handler = handler
+        self.params = params
+        self.description = description
+        self.only_once = only_once
+
+    def handle(self, ctx):
+        if self.params:
+            return self.handler(ctx, **self.params)
+        else:
+            return self.handler(ctx)
