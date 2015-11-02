@@ -3,6 +3,7 @@ import sys
 
 import yaml
 
+
 def force_yaml_unicode():
     def unicode_str_constructor(loader, node):
         return unicode(loader.construct_scalar(node))

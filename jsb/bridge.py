@@ -127,7 +127,7 @@ class Bridge(object):
                     'related_id__c': new_ticket_id,
                 }
 
-                self.sfdc_client.update_comment(comment_from_sf['Id'], data)
+                self.sfdc_client.update_comment(comment_from_sf['records'][0]['Id'], data)
                 self.store.sadd('seen_comments_id', comment.id)
 
     def create_ticket(self, issue):
