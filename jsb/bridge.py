@@ -265,7 +265,7 @@ class Bridge(object):
 
     def process_sync_status(self, issue, ticket, jira_status_changed, sf_status_changed):
         status_name_issue = issue.fields.status.name
-        forward_to = self.my_sf_possible_status.get(ticket['Status__c'])
+        forward_to = self.sf_possible_status.get(ticket['Status__c'])
         if not forward_to:
             LOG.info('Invalid value for Ticket-status: %s', ticket['Status__c'])
             sf_status_changed = True
