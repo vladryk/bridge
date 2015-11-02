@@ -1,18 +1,15 @@
-from jira import JIRA
 from dateutil.parser import parse
 # from jsb import LOG
 from __init__ import LOG  # FIXME
 
-ACTION_HANDLER_FORMAT = 'handle_{}'
+# JIRA_POSSIBLE_STATUS = {'New': 'new', 'Support Investigating': 'hold',
+#                            'Waiting Reporter': 'pending', 'Waiting Support': 'open',   # TODO move to *.yml-file
+#                            'Resolved': 'solved', 'Closed': 'closed'}
 
-MY_JIRA_POSSIBLE_STATUS = {'New': 'new', 'Support Investigating': 'hold',
-                           'Waiting Reporter': 'pending', 'Waiting Support': 'open',   # TODO move to *.yml-file
-                           'Resolved': 'solved', 'Closed': 'closed'}
-
-MY_SF_POSSIBLE_STATUS = {'hold': ['Support Investigating',],
-                         'pending': ['Support Investigating', 'Waiting Reporter'],
-                         'open': ['Support Investigating', 'Waiting Reporter', 'Waiting Support'],
-                         'solved': ['Support Investigating', 'Resolved']}
+# SF_POSSIBLE_STATUS = {'hold': ['Support Investigating',],
+#                          'pending': ['Support Investigating', 'Waiting Reporter'],
+#                          'open': ['Support Investigating', 'Waiting Reporter', 'Waiting Support'],
+#                          'solved': ['Support Investigating', 'Resolved']}
 
 
 class Bridge(object):
@@ -31,8 +28,12 @@ class Bridge(object):
         self.jira_identity = jira_client.current_user()
         self.jira_solved_statuses = config['jira_solved_statuses']
 
-        self.my_jira_possible_status = MY_JIRA_POSSIBLE_STATUS
-        self.my_sf_possible_status = MY_SF_POSSIBLE_STATUS
+        # self.my_jira_possible_status = JIRA_POSSIBLE_STATUS
+        # self.my_sf_possible_status = SF_POSSIBLE_STATUS
+
+        self.jira_possible_status = config['jira_possible_status']
+        self.sf_possible_status = config['sf_possible_status']
+        self.sf_ticket_close_status = config['sf_ticket_close_status']
 
     def sync_issues(self):
         LOG.debug('Querying JIRA: %s', self.issue_jql)
@@ -79,13 +80,13 @@ class Bridge(object):
 
             LOG.info('Creating SF ticket for JIRA issue')
             ticket_id = self.create_ticket(issue)
-        elif ticket['Status__c'] == 'closed':
+        elif ticket['Status__c'] == self.sf_ticket_close_status:
             if not self.is_issue_eligible(issue):
                 LOG.debug('Skipping previously closed, ineligible issue')
                 return False
 
             LOG.info('Creating followup SF ticket for JIRA issue')
-            ticket = self.create_followup_ticket(issue, ticket)  # FIXME  (after sync status)
+            ticket_id = self.create_followup_ticket(issue, ticket_id)  # FIXME  (after sync status)
 
         self.store.hset('issue_to_ticket_id', issue.key, ticket_id)
 
@@ -108,8 +109,38 @@ class Bridge(object):
 
         return True
 
-    def create_followup_ticket(self, issue, previous_ticket):
-        pass
+    def create_followup_ticket(self, issue, closed_ticket_id):
+        LOG.info('Trying to create new ticket for re-opened issue %s', issue.key)
+        assignee_name = getattr(issue.fields.assignee, 'name', '')
+        reporter = getattr(issue.fields.reporter, 'displayName', '')
+        data = {
+            'Subject__c': issue.fields.summary,
+            'Description__c': issue.fields.description,
+            'External_id__c': issue.key,
+            'Requester__c': reporter,
+            'Assignee__c': assignee_name,
+            'Closed_Case_Id__c': closed_ticket_id
+        }
+
+        result = self.sfdc_client.create_ticket(data)
+        LOG.info('Successful create new ticket %s,  for old issue %s', result['id'], issue.key)
+
+        LOG.debug('Start bind old jira comments for new ticket')
+        self._change_sf_comments_id(issue, result['id'])
+        LOG.debug('Finish bind old jira comments for new ticket')
+
+        return result['id']
+
+    def _change_sf_comments_id(self, issue, new_ticket_id):
+        for comment in issue.fields.comment.comments:
+            comment_from_sf = self.sfdc_client.ticket_comment(comment.id)
+            if comment_from_sf['totalSize'] != 0:
+                data = {
+                    'related_id__c': new_ticket_id,
+                }
+
+                self.sfdc_client.update_comment(comment_from_sf['Id'], data)
+                self.store.sadd('seen_comments_id', comment.id)
 
     def create_ticket(self, issue):
         LOG.info('Trying to create ticket for issue %s', issue.key)
@@ -223,7 +254,7 @@ class Bridge(object):
                                      'summary': ticket['Subject__c']})
 
     def map_status_jira_sf(self, issue_status_name):
-        return self.my_jira_possible_status.get(issue_status_name, 'None')
+        return self.jira_possible_status.get(issue_status_name, 'None')
 
     def sync_status(self, issue, ticket):
         last_seen_jira_status = self.store.get('last_seen_jira_status:{}'.format(issue.key))

@@ -1,3 +1,10 @@
+
+
+# JIRA auth
+jira_url: http://localhost:8070
+jira_username: vokhrimenko@mirantis.com
+jira_password: test
+
 # State storage path
 storage_dir: /tmp
 
@@ -20,128 +27,26 @@ jira_solved_statuses:
   - Closed
   - Resolved
 
-# Actions to take when JIRA issue status changes
-jira_status_actions:
-  - description: Customer marked ticket as resolved
-    jira_status:
-      - Resolved
-      - Closed
-    zd_status:
-      - new
-      - open
-      - pending
-      - hold
-    # These actions should happen even if we don't own the issue currently
-    force: true
-    actions:
-      # Bot will attempt to automatically resolve ticket, but could fail due to
-      # missing required ticket fields
-      - description: Notify L1 that customer solved ticket
-        type: update_ticket
-        only_once: true
-        status: open
-        comment:
-          body: >
-            Customer has marked the ticket as resolved in JIRA. However, the ticket may not be able
-            to be automatically solved due to required ticket fields (Closure Classification, Product
-            Classification, etc.) Please fill out those fields and mark this ticket solved.
-          public: false
+jira_possible_status:
+  New: New
+  Support Investigating: On hold
+  Waiting Reporter: Pending
+  Waiting Support: Open
+  Resolved: Solved
+  Closed: Closed
 
-      - description: Ensure solved tag is present on ticket
-        type: add_ticket_tags
-        tags:
-          - customer_solved
+sf_ticket_close_status: Closed
 
-      # This is allowed to fail
-      - description: Try to solve ticket if required fields present
-        type: update_ticket
-        status: solved
-
-  - description: Customer submitted information or re-opened ticket
-    jira_status:
-      - Waiting Support
-    zd_status:
-      - pending
-      - solved
-    actions:
-      - description: Open ticket
-        type: update_ticket
-        status: open
-
-      - description: Ensure solved tag is absent on ticket
-        type: remove_ticket_tags
-        tags:
-          - customer_solved
-
-  # This will only happen when ticket is assigned to bot
-  - description: Ticket was de-escalated
-    jira_status:
-      - Waiting Support
-      - Support Investigating
-    zd_status:
-      - hold
-    actions:
-      - description: Open ticket
-        type: update_ticket
-        status: open
-
-# Actions to take when Zendesk ticket status changes
-zd_status_actions:
-  - description: L1 started working ticket
-    jira_status:
-      - New
-    zd_status:
-      - open
-      - pending
-    actions:
-      - description: Transition issue to Support Investigating
-        type: transition_issue
-        name: Start Investigation
-
-  # The CPE Support Workflow does not permit directly moving to Waiting Reporter
-  # Transition to intermediate state Support Investigating and then try again in the next step
-  - description: L1 requested information from the customer
-    jira_status:
-      - Waiting Support
-    zd_status:
-      - pending
-    actions:
-      - description: Transition issue to Support Investigating
-        type: transition_issue
-        name: Start Investigation
-
-  - description: L1 requested information from the customer
-    jira_status:
-      - Support Investigating
-    zd_status:
-      - pending
-    actions:
-      - description: Transition issue to Waiting Reporter
-        type: transition_issue
-        name: Request Information
-
-  # The CPE Support Workflow does not permit directly moving to Solved
-  # Transition to intermediate state Support Investigating and then try again in the next step
-  - description: L1 marked ticket as solved
-    jira_status:
-      - New
-      - Waiting Reporter
-      - Waiting Support
-    zd_status:
-      - solved
-    actions:
-      - description: Transition issue to Support Investigating
-        type: transition_issue
-        name: Start Investigation
-
-  - description: L1 marked ticket as solved
-    jira_status:
-      - Support Investigating
-    zd_status:
-      - solved
-    actions:
-      - description: Transition issue to Resolved
-        type: transition_issue
-        name: Resolve
-        resolution:
-          name: Fixed
+sf_possible_status:
+  On hold:
+    - Support Investigating
+  Pending:
+    - Support Investigating
+    - Waiting Reporter
+  Open:
+    - Support Investigating
+    - Waiting Reporter
+    - Waiting Support
+  Solved:
+    - Support Investigating
+    - Resolved
