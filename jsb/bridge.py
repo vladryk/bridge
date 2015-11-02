@@ -2,15 +2,6 @@ from dateutil.parser import parse
 # from jsb import LOG
 from __init__ import LOG  # FIXME
 
-# JIRA_POSSIBLE_STATUS = {'New': 'new', 'Support Investigating': 'hold',
-#                            'Waiting Reporter': 'pending', 'Waiting Support': 'open',   # TODO move to *.yml-file
-#                            'Resolved': 'solved', 'Closed': 'closed'}
-
-# SF_POSSIBLE_STATUS = {'hold': ['Support Investigating',],
-#                          'pending': ['Support Investigating', 'Waiting Reporter'],
-#                          'open': ['Support Investigating', 'Waiting Reporter', 'Waiting Support'],
-#                          'solved': ['Support Investigating', 'Resolved']}
-
 
 class Bridge(object):
     def __init__(self, sfdc_client, jira_client, store, config):
@@ -27,9 +18,6 @@ class Bridge(object):
 
         self.jira_identity = jira_client.current_user()
         self.jira_solved_statuses = config['jira_solved_statuses']
-
-        # self.my_jira_possible_status = JIRA_POSSIBLE_STATUS
-        # self.my_sf_possible_status = SF_POSSIBLE_STATUS
 
         self.jira_possible_status = config['jira_possible_status']
         self.sf_possible_status = config['sf_possible_status']
@@ -86,7 +74,7 @@ class Bridge(object):
                 return False
 
             LOG.info('Creating followup SF ticket for JIRA issue')
-            ticket_id = self.create_followup_ticket(issue, ticket_id)  # FIXME  (after sync status)
+            ticket_id = self.create_followup_ticket(issue, ticket_id)
 
         self.store.hset('issue_to_ticket_id', issue.key, ticket_id)
 

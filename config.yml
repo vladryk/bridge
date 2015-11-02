@@ -1,4 +1,9 @@
-
+# Salesforce auth
+sfdc_auth_url: https://test.salesforce.com
+sfdc_client_id:
+sfdc_client_secret:
+sfdc_username:
+sfdc_password: 
 
 # JIRA auth
 jira_url: http://localhost:8070

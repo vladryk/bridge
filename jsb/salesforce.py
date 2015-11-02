@@ -57,7 +57,6 @@ class Client(object):
         return self.search("SELECT Comment__c, CreatedById, external_id__c, Id FROM proxyTicketComment__c WHERE related_id__c='{}'".format(ticket_id))
 
     def ticket_comment(self, comment_id):
-        #return self.search("SELECT Comment__c, CreatedById, Id FROM proxyTicketComment__c WHERE external_id__c='{}'".format(comment_id))
         return self.get('/services/data/v35.0/query', params=dict(q="SELECT Comment__c, CreatedById, Id FROM proxyTicketComment__c WHERE external_id__c='{}'".format(comment_id))).json()
 
     def search(self, query):

@@ -6,7 +6,7 @@ import sys
 from jira import JIRA
 import yaml
 
-#from jsb import LOG, salesforce
+#from jsb import LOG
 from __init__ import LOG  # FIXME
 from salesforce import OAuth2, Client
 from bridge import Bridge
