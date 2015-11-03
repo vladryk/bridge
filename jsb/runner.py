@@ -4,7 +4,6 @@ import sys
 import yaml
 
 from jsb import LOG
-#from __init__ import LOG  # FIXME
 from jira import JIRA
 from argparse import ArgumentParser
 from salesforce import OAuth2, Client

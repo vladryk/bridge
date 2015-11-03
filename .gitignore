@@ -1,4 +1,6 @@
 *.pyc
+*.yml
+*.egg-info
 .venv
 .idea
-*.yml
+config.yml

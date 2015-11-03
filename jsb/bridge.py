@@ -1,6 +1,5 @@
 from dateutil.parser import parse
 from jsb import LOG
-#from __init__ import LOG  # FIXME
 
 
 class Bridge(object):
