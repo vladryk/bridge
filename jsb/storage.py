@@ -1,5 +1,4 @@
 import os
-
 import yaml
 
 
@@ -56,12 +55,6 @@ class Store(object):
         s.add(value)
         self.save_to_backend()
         return True
-
-    def sismember(self, key, value):  # FIXME
-        if key not in self.data:
-            return False
-
-        return value in self.data[key]
 
     def srem(self, key, value):
         if key not in self.data:

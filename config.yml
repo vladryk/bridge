@@ -1,20 +1,15 @@
-# Salesforce auth
-sfdc_auth_url: https://test.salesforce.com
-sfdc_client_id:
-sfdc_client_secret:
-sfdc_username:
-sfdc_password: 
+
 
 # JIRA auth
 jira_url: http://localhost:8070
-jira_username: vokhrimenko@mirantis.com
+jira_username: SymantecJiraBot
 jira_password: test
 
 # State storage path
 storage_dir: /tmp
 
 # JQL for matching issues
-jira_issue_jql: project = MY
+jira_issue_jql: 'project = MY AND ("Responsible Team" = "Openstack" or "Responsible Team" = "OBS")'
 
 # Issue field used to hold reference to the SFDC case ID
 jira_reference_field: customfield_10100

@@ -1,6 +1,6 @@
 from dateutil.parser import parse
-# from jsb import LOG
-from __init__ import LOG  # FIXME
+from jsb import LOG
+#from __init__ import LOG  # FIXME
 
 
 class Bridge(object):
@@ -52,7 +52,7 @@ class Bridge(object):
 
         self.sync_status(issue, ticket)
 
-    def ensure_ticket(self, issue):  # FIXME
+    def ensure_ticket(self, issue):
         ticket = None
         ticket_id = self.store.hget('issue_to_ticket_id', issue.key)
         if not ticket_id:
@@ -60,29 +60,29 @@ class Bridge(object):
 
         if ticket_id:
             ticket = self.sfdc_client.ticket(ticket_id)
-
+            if not ticket:
+                LOG.debug('Jira-issue has a link to SF-ticket, but '
+                          'SF does not have a ticket with ID: %s', ticket_id)
         if not ticket:
             if not self.is_issue_eligible(issue):
                 LOG.debug('Skipping previously untracked, ineligible issue')
                 return False
-
             LOG.info('Creating SF ticket for JIRA issue')
             ticket_id = self.create_ticket(issue)
+
         elif ticket['Status__c'] == self.sf_ticket_close_status:
             if not self.is_issue_eligible(issue):
                 LOG.debug('Skipping previously closed, ineligible issue')
                 return False
-
             LOG.info('Creating followup SF ticket for JIRA issue')
             ticket_id = self.create_followup_ticket(issue, ticket_id)
 
         self.store.hset('issue_to_ticket_id', issue.key, ticket_id)
-
         return self.sfdc_client.ticket(ticket_id)
 
     def is_issue_eligible(self, issue):
         """
-        Determines if an untracked or previously closed issue is eligible for creation in Zendesk
+        Determines if an untracked or previously closed issue is eligible for creation in SF
 
         :param issue: `jira.resources.Issue` object
         :return: Whether or not issue is eligible
@@ -91,14 +91,14 @@ class Bridge(object):
             # Ignore issues that have already been marked solved
             return False
 
-        # if issue.fields.assignee and issue.fields.assignee.name != self.jira_identity:  # FIXME
-        #     # Ignore issues that have already been assigned to someone other than us
-        #     return False
+        if issue.fields.assignee and issue.fields.assignee.name != self.jira_identity:  # FIXME
+            # Ignore issues that have already been assigned to someone other than us
+            return False
 
         return True
 
     def create_followup_ticket(self, issue, closed_ticket_id):
-        LOG.info('Trying to create new ticket for re-opened issue %s', issue.key)
+        LOG.debug('Trying to create new ticket for re-opened issue %s', issue.key)
         assignee_name = getattr(issue.fields.assignee, 'name', '')
         reporter = getattr(issue.fields.reporter, 'displayName', '')
         data = {
@@ -111,7 +111,7 @@ class Bridge(object):
         }
 
         result = self.sfdc_client.create_ticket(data)
-        LOG.info('Successful create new ticket %s,  for old issue %s', result['id'], issue.key)
+        LOG.debug('Successful create new ticket %s,  for old issue %s', result['id'], issue.key)
 
         LOG.debug('Start bind old jira comments for new ticket')
         self._change_sf_comments_id(issue, result['id'])
@@ -149,16 +149,12 @@ class Bridge(object):
 
     def sync_priority(self, issue, ticket):
         sfdc_priority = self.priority_map.get(issue.fields.priority.name, self.fallback_priority)
-
         if ticket['Priority__c'] == sfdc_priority:
             return
-
         LOG.info('Updating priority on SFDC: %s', sfdc_priority)
-
         data = {
             'Priority__c': sfdc_priority
         }
-
         self.sfdc_client.update_ticket(ticket['Id'], data)
 
     def sync_jira_reference(self, issue, ticket):
@@ -176,7 +172,7 @@ class Bridge(object):
                 LOG.debug('Skipping seen JIRA comment: %s', comment.id)
                 continue
             else:
-                comment_from_sf = self.sfdc_client.ticket_comment(comment.id)  # FIXME need get all comments
+                comment_from_sf = self.sfdc_client.ticket_comment(comment.id)
                 if comment_from_sf['totalSize'] != 0:
                     LOG.debug('Skipping seen SF comment: %s', comment.id)
                     self.store.sadd('seen_comments_id', comment.id)
@@ -259,7 +255,8 @@ class Bridge(object):
             LOG.debug('Zendesk status changed')
 
         if jira_status_changed or sf_status_changed:
-            new_issue_status, new_ticket_status = self.process_sync_status(issue, ticket, jira_status_changed, sf_status_changed)
+            new_issue_status, new_ticket_status = self.process_sync_status(
+                issue, ticket, jira_status_changed, sf_status_changed)
             self.store.set('last_seen_jira_status:{}'.format(issue.key), new_issue_status)
             self.store.set('last_seen_sf_status:{}'.format(ticket['Id']), new_ticket_status)
 
@@ -271,23 +268,7 @@ class Bridge(object):
             sf_status_changed = True
             jira_status_changed = True
 
-        if jira_status_changed and sf_status_changed:
-            data = {
-                'Status__c': self.map_status_jira_sf(status_name_issue)
-            }
-            self.sfdc_client.update_ticket(ticket['Id'], data)
-            LOG.debug('Updated ticket status: %s', ticket['Id'])
-            return status_name_issue, self.map_status_jira_sf(status_name_issue)
-
-        elif jira_status_changed and not sf_status_changed:
-            data = {
-                'Status__c': self.map_status_jira_sf(status_name_issue)
-            }
-            self.sfdc_client.update_ticket(ticket['Id'], data)
-            LOG.debug('Updated ticket status: %s', ticket['Id'])
-            return status_name_issue, self.map_status_jira_sf(status_name_issue)
-
-        elif sf_status_changed and not jira_status_changed:
+        if sf_status_changed and not jira_status_changed:
             transitions = self.jira_client.transitions(self.jira_client.issue(issue.key))
             available_transitions = dict((t['name'], t['id']) for t in transitions)
 
@@ -307,3 +288,11 @@ class Bridge(object):
                 available_transitions = dict((t['name'], t['id']) for t in transitions)
 
             return forward_to[-1], ticket['Status__c']
+
+        else:
+            data = {
+                'Status__c': self.map_status_jira_sf(status_name_issue)
+            }
+            self.sfdc_client.update_ticket(ticket['Id'], data)
+            LOG.debug('Updated ticket status: %s', ticket['Id'])
+            return status_name_issue, self.map_status_jira_sf(status_name_issue)

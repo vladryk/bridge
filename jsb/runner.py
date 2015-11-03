@@ -1,13 +1,12 @@
-from argparse import ArgumentParser
 import logging
 import os
 import sys
-
-from jira import JIRA
 import yaml
 
-#from jsb import LOG
-from __init__ import LOG  # FIXME
+from jsb import LOG
+#from __init__ import LOG  # FIXME
+from jira import JIRA
+from argparse import ArgumentParser
 from salesforce import OAuth2, Client
 from bridge import Bridge
 from storage import FileBackend, Store
@@ -39,7 +38,8 @@ def main():
         config = yaml.load(fp)
 
     jira_client = JIRA(server=config['jira_url'],
-                       basic_auth=(config['jira_username'], config['jira_password']))
+                       basic_auth=(config['jira_username'],
+                                   config['jira_password']))
 
     sfdc_oauth2 = OAuth2(client_id=config['sfdc_client_id'],
                          client_secret=config['sfdc_client_secret'],
