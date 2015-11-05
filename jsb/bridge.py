@@ -200,11 +200,7 @@ class Bridge(object):
                 comment['Id'])
 
             issue_comment = self.jira_client.add_comment(issue, comment['Comment__c'])
-
-            data = {
-                'external_id__c': issue_comment.id
-            }
-
+            data = {'external_id__c': issue_comment.id}
             LOG.info(
                 'Update SalesForce comment with JIRA comment-id: %s',
                 issue_comment.id)
@@ -263,7 +259,8 @@ class Bridge(object):
         status_name_issue = issue.fields.status.name
         forward_to = self.sf_possible_status.get(ticket['Status__c'])
         if not forward_to:
-            LOG.info('Invalid value for Ticket-status: %s', ticket['Status__c'])
+            LOG.info('Invalid value issue-status: %s for Ticket-status: %s',
+                     issue.fields.status.name, ticket['Status__c'])
             sf_status_changed = True
             jira_status_changed = True
 
