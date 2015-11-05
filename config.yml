@@ -14,12 +14,14 @@ jira_issue_jql: 'project = MY AND ("Responsible Team" = "Openstack" or "Responsi
 # Issue field used to hold reference to the SFDC case ID
 jira_reference_field: customfield_10100
 
+jira_description_field: description
+
 jira_priority_map:
-  Blocker: normal
-  Critical: normal
-  Major: normal
-  Minor: low
-  Trivial: low
+  Blocker: Sev 3
+  Critical: Sev 3
+  Major: Sev 3
+  Minor: Sev 4
+  Trivial: Sev 4
 
 jira_fallback_priority: normal
 
@@ -50,3 +52,44 @@ sf_possible_status:
   Solved:
     - Support Investigating
     - Resolved
+
+
+# Format used when creating tickets in SF
+sf_initial_comment_format: |
+  Issue created by {{ issue.fields.creator.displayName }} on {{ issue.fields.created }}
+  \\
+  {{ issue.fields.description }}
+  \\
+  ---
+  \\
+  {{ jira_url }}/browse/{{ issue.key }}
+
+
+# Format used when creating followup tickets in SF
+sf_followup_comment_format: |
+  Issue was previously closed but has been reopened
+
+  Issue originally created by {{ issue.fields.creator.displayName }} on {{ issue.fields.created }}
+  \\
+  {{ issue.fields.description }}
+  \\
+  ---
+  \\
+  {{ jira_url }}/browse/{{ issue.key }}
+
+
+# Format used when creating comments in SF
+sf_comment_format: |
+  Issue updated by {{ comment.author.displayName }} on {{ comment.created }}
+  \\
+  {{ comment.body }}
+
+# Format used when creating comments in JIRA
+jira_comment_format: |
+  *{{ created_by }}, {{ created_at }}*
+  \\
+  {{ comment }}
+
+
+# Delimeter used to strip signature from SF comments synced to JIRA
+sf_signature_delimeter: ---

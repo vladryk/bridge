@@ -1,3 +1,4 @@
+import jinja2
 from dateutil.parser import parse
 from jsb import LOG
 
@@ -21,6 +22,15 @@ class Bridge(object):
         self.jira_possible_status = config['jira_possible_status']
         self.sf_possible_status = config['sf_possible_status']
         self.sf_ticket_close_status = config['sf_ticket_close_status']
+
+        self.jira_description_field = config['jira_description_field']
+
+        self.sf_initial_comment_format = jinja2.Template(config['sf_initial_comment_format'])
+        self.sf_followup_comment_format = jinja2.Template(config['sf_followup_comment_format'])
+        self.sf_comment_format = jinja2.Template(config['sf_comment_format'])
+        self.jira_comment_format = jinja2.Template(config['jira_comment_format'])
+        self.sf_signature_delimeter = config['sf_signature_delimeter']
+        self.jira_url = config['jira_url']
 
     def sync_issues(self):
         LOG.debug('Querying JIRA: %s', self.issue_jql)
@@ -100,12 +110,14 @@ class Bridge(object):
         LOG.debug('Trying to create new ticket for re-opened issue %s', issue.key)
         assignee_name = getattr(issue.fields.assignee, 'name', '')
         reporter = getattr(issue.fields.reporter, 'displayName', '')
+        comment = self.sf_followup_comment_format.render(issue=issue,
+                                                         jira_url=self.jira_url)
         data = {
             'Subject__c': issue.fields.summary,
-            'Description__c': issue.fields.description,
+            'Description__c': comment,
             'External_id__c': issue.key,
             'Requester__c': reporter,
-            'Assignee__c': assignee_name,
+            #'Assignee__c': assignee_name,
             'Closed_Case_Id__c': closed_ticket_id
         }
 
@@ -133,16 +145,21 @@ class Bridge(object):
         LOG.info('Trying to create ticket for issue %s', issue.key)
         assignee_name = getattr(issue.fields.assignee, 'name', '')
         reporter = getattr(issue.fields.reporter, 'displayName', '')
+
+        comment = self.sf_initial_comment_format.render(issue=issue,
+                                                        jira_url=self.jira_url)
+
         data = {
             'Subject__c': issue.fields.summary,
-            'Description__c': issue.fields.description,
+            'Description__c': comment,
             'External_id__c': issue.key,
             'Requester__c': reporter,
-            'Assignee__c': assignee_name,
+            #'Assignee__c': assignee_name,
         }
 
         result = self.sfdc_client.create_ticket(data)
         LOG.info('Successful create ticket %s,  for issue %s', result['id'], issue.key)
+        issue.update(fields={self.jira_description_field: comment})
 
         return result['id']
 
@@ -179,8 +196,10 @@ class Bridge(object):
 
             LOG.info('Copying JIRA comment to SFDC: %s', comment.id)
 
+            comment_body = self.sf_comment_format.render(comment=comment)
+
             data = {
-                'Comment__c': comment.body,
+                'Comment__c': comment_body,
                 'related_id__c': ticket['Id'],
                 'external_id__c': comment.id
             }
@@ -199,7 +218,11 @@ class Bridge(object):
                 'Copying SalesForce comment to JIRA issue: %s',
                 comment['Id'])
 
-            issue_comment = self.jira_client.add_comment(issue, comment['Comment__c'])
+            comment_body = self.jira_comment_format.render(comment=comment['Comment__c'],
+                                                           created_at=comment['CreatedDate'],
+                                                           created_by=comment['CreatedBy']['Name'])
+
+            issue_comment = self.jira_client.add_comment(issue, comment_body)
             data = {'external_id__c': issue_comment.id}
             LOG.info(
                 'Update SalesForce comment with JIRA comment-id: %s',
