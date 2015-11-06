@@ -32,6 +32,9 @@ class Bridge(object):
         self.sf_signature_delimeter = config['sf_signature_delimeter']
         self.jira_url = config['jira_url']
 
+        self.assignee_sf_name = config['assignee_sf_name']
+        self.symantec_assignee_username = config['symantec_assignee_username']
+
     def sync_issues(self):
         LOG.debug('Querying JIRA: %s', self.issue_jql)
         for issue in self.jira_client.search_issues(
@@ -55,6 +58,7 @@ class Bridge(object):
 
         self.sync_priority(issue, ticket)
         self.sync_jira_reference(issue, ticket)
+        self.sync_assignee(issue, ticket)
         self.sync_comments_from_jira(issue, ticket)
         self.sync_comments_to_jira(issue, ticket)
         self.sync_subject_description(issue, ticket)
@@ -108,7 +112,7 @@ class Bridge(object):
 
     def create_followup_ticket(self, issue, closed_ticket_id):
         LOG.debug('Trying to create new ticket for re-opened issue %s', issue.key)
-        assignee_name = getattr(issue.fields.assignee, 'name', '')
+        assignee_name = getattr(issue.fields.assignee, 'name', self.jira_identity)
         reporter = getattr(issue.fields.reporter, 'displayName', '')
         comment = self.sf_followup_comment_format.render(issue=issue,
                                                          jira_url=self.jira_url)
@@ -117,7 +121,7 @@ class Bridge(object):
             'Description__c': comment,
             'External_id__c': issue.key,
             'Requester__c': reporter,
-            #'Assignee__c': assignee_name,
+            'Assignee__c': assignee_name,
             'Closed_Case_Id__c': closed_ticket_id
         }
 
@@ -143,7 +147,7 @@ class Bridge(object):
 
     def create_ticket(self, issue):
         LOG.info('Trying to create ticket for issue %s', issue.key)
-        assignee_name = getattr(issue.fields.assignee, 'name', '')
+        assignee_name = getattr(issue.fields.assignee, 'name', self.jira_identity)
         reporter = getattr(issue.fields.reporter, 'displayName', '')
 
         comment = self.sf_initial_comment_format.render(issue=issue,
@@ -154,7 +158,7 @@ class Bridge(object):
             'Description__c': comment,
             'External_id__c': issue.key,
             'Requester__c': reporter,
-            #'Assignee__c': assignee_name,
+            'Assignee__c': assignee_name,
         }
 
         result = self.sfdc_client.create_ticket(data)
@@ -315,3 +319,42 @@ class Bridge(object):
             self.sfdc_client.update_ticket(ticket['Id'], data)
             LOG.debug('Updated ticket status: %s', ticket['Id'])
             return status_name_issue, self.map_status_jira_sf(status_name_issue)
+
+    def sync_assignee(self, issue, ticket):
+        last_seen_jira_assignee = self.store.get('last_seen_jira_assignee:{}'.format(issue.key))
+        last_seen_sf_assignee = self.store.get('last_seen_sf_assignee:{}'.format(ticket['Id']))
+
+        if issue.fields.assignee:
+            LOG.debug('JIRA issue assigned: %s', issue.fields.assignee.name)
+
+        elif not issue.fields.assignee:
+            LOG.info('Assigning previously unassigned JIRA issue to bot')
+            self.jira_client.assign_issue(issue, self.jira_identity)
+            issue = self.refresh_issue(issue)
+
+        ticket_assignee_name = ticket['Assignee__c']
+        jira_assignee_name = getattr(issue.fields.assignee, 'name', None)
+
+        if issue.fields.assignee.name != last_seen_jira_assignee:
+            if jira_assignee_name != self.jira_identity:
+                ticket_assignee_name = self.assignee_sf_name[0]
+            else:
+                ticket_assignee_name = self.assignee_sf_name[1]
+            data = {'Assignee__c': ticket_assignee_name}
+            self.sfdc_client.update_ticket(ticket['Id'], data)
+
+        elif ticket['Assignee__c'] != last_seen_sf_assignee:
+            if ticket['Assignee__c'] == self.assignee_sf_name[1]:
+                jira_assignee_name = self.jira_identity
+            elif ticket['Assignee__c'] == self.assignee_sf_name[0]:
+                jira_assignee_name = self.symantec_assignee_username
+            self.jira_client.assign_issue(issue, jira_assignee_name)
+
+        self.store.set('last_seen_jira_assignee:{}'.format(issue.key), jira_assignee_name)
+        self.store.set('last_seen_sf_assignee:{}'.format(ticket['Id']), ticket_assignee_name)
+
+    def refresh_issue(self, issue):
+        """
+        Refresh issue from the JIRA API
+        """
+        return self.jira_client.issue(issue.key, fields='assignee,attachment,comment,*navigable')

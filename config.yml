@@ -5,6 +5,12 @@ jira_url: http://localhost:8070
 jira_username: SymantecJiraBot
 jira_password: test
 
+assignee_sf_name:
+  - Symantec
+  - JiraBot
+
+symantec_assignee_username: wayland
+
 # State storage path
 storage_dir: /tmp
 
@@ -13,6 +19,8 @@ jira_issue_jql: 'project = MY AND ("Responsible Team" = "Openstack" or "Responsi
 
 # Issue field used to hold reference to the SFDC case ID
 jira_reference_field: customfield_10100
+
+
 
 jira_description_field: description
 
