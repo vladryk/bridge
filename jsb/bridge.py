@@ -22,7 +22,9 @@ class Bridge(object):
         self.jira_possible_status = config['jira_possible_status']
         self.sf_possible_status = config['sf_possible_status']
         self.sf_ticket_close_status = config['sf_ticket_close_status']
+        self.sf_ticket_solve_status = config['sf_ticket_solve_status']
 
+        self.jira_resolution_status = config['jira_resolution_status']
         self.jira_description_field = config['jira_description_field']
 
         self.sf_initial_comment_format = jinja2.Template(config['sf_initial_comment_format'])
@@ -310,6 +312,8 @@ class Bridge(object):
                 transitions = self.jira_client.transitions(self.jira_client.issue(issue.key))
                 available_transitions = dict((t['name'], t['id']) for t in transitions)
 
+            if ticket['Status__c'] == self.sf_ticket_solve_status:
+                issue.update(fields={'resolution': self.jira_resolution_status})
             return forward_to[-1], ticket['Status__c']
 
         else:
