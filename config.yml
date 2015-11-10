@@ -42,7 +42,7 @@ jira_resolution_status:
 
 jira_possible_status:
   New: New
-  Support Investigating: On hold
+  Support Investigating: On Hold
   Waiting Reporter: Pending
   Waiting Support: Open
   Resolved: Solved
@@ -52,7 +52,9 @@ sf_ticket_close_status: Closed
 sf_ticket_solve_status: Solved
 
 sf_possible_status:
-  On hold:
+  New:
+    - New
+  On Hold:
     - Support Investigating
   Pending:
     - Support Investigating
@@ -80,10 +82,7 @@ sf_initial_comment_format: |
 # Format used when creating followup tickets in SF
 sf_followup_comment_format: |
   Issue was previously closed but has been reopened
-
   Issue originally created by {{ issue.fields.creator.displayName }} on {{ issue.fields.created }}
-  \\
-  {{ issue.fields.description }}
   \\
   ---
   \\

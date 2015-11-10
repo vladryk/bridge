@@ -80,16 +80,19 @@ class Bridge(object):
                           'SF does not have a ticket with ID: %s', ticket_id)
         if not ticket:
             if not self.is_issue_eligible(issue):
-                LOG.debug('Skipping previously untracked, ineligible issue')
+                LOG.debug('Skipping previously untracked, '
+                          'ineligible issue %s', issue.key)
                 return False
-            LOG.info('Creating SF ticket for JIRA issue')
+            LOG.info('Creating SF ticket for JIRA issue %s', issue.key)
             ticket_id = self.create_ticket(issue)
 
         elif ticket['Status__c'] == self.sf_ticket_close_status:
             if not self.is_issue_eligible(issue):
-                LOG.debug('Skipping previously closed, ineligible issue')
+                LOG.debug('Skipping previously closed, ineligible '
+                          'issue %s', issue.key)
                 return False
-            LOG.info('Creating followup SF ticket for JIRA issue')
+            LOG.info('Creating followup SF ticket for '
+                     'JIRA issue %s', issue.key)
             ticket_id = self.create_followup_ticket(issue, ticket_id)
 
         self.store.hset('issue_to_ticket_id', issue.key, ticket_id)
@@ -104,10 +107,14 @@ class Bridge(object):
         """
         if issue.fields.status.name in self.jira_solved_statuses:
             # Ignore issues that have already been marked solved
+            LOG.debug('Skipping issue %s (issues that have already '
+                      'been marked solved)', issue.key)
             return False
 
         if issue.fields.assignee and issue.fields.assignee.name != self.jira_identity:  # FIXME
             # Ignore issues that have already been assigned to someone other than us
+            LOG.debug('Skipping issue %s (issues that have already '
+                      'been assigned to someone other than us)', issue.key)
             return False
 
         return True
@@ -116,11 +123,12 @@ class Bridge(object):
         LOG.debug('Trying to create new ticket for re-opened issue %s', issue.key)
         assignee_name = getattr(issue.fields.assignee, 'name', self.jira_identity)
         reporter = getattr(issue.fields.reporter, 'displayName', '')
+        discription = getattr(issue.fields, 'description', '')
         comment = self.sf_followup_comment_format.render(issue=issue,
                                                          jira_url=self.jira_url)
         data = {
             'Subject__c': issue.fields.summary,
-            'Description__c': comment,
+            'Description__c': discription,
             'External_id__c': issue.key,
             'Requester__c': reporter,
             'Assignee__c': assignee_name,
@@ -129,6 +137,13 @@ class Bridge(object):
 
         result = self.sfdc_client.create_ticket(data)
         LOG.debug('Successful create new ticket %s,  for old issue %s', result['id'], issue.key)
+
+        data = {
+                'Comment__c': comment,
+                'related_id__c': result['id'],
+               }
+
+        self.sfdc_client.create_ticket_comment(data)
 
         LOG.debug('Start bind old jira comments for new ticket')
         self._change_sf_comments_id(issue, result['id'])
@@ -200,7 +215,7 @@ class Bridge(object):
                     self.store.sadd('seen_comments_id', comment.id)
                     continue
 
-            LOG.info('Copying JIRA comment to SFDC: %s', comment.id)
+            LOG.info('Copying JIRA (Jira issue %s) comment to SFDC: %s', issue.key, comment.id)
 
             comment_body = self.sf_comment_format.render(comment=comment)
 
@@ -219,10 +234,15 @@ class Bridge(object):
             if self.store.sismember('seen_comments_id', comment['external_id__c']):
                 LOG.debug('Skipping seen SalesForce comment: %s', comment['Id'])
                 continue
+            if comment['external_id__c']:
+                LOG.debug('Skipping seen SalesForce comment: %s '
+                          '(comment has JIRA comment-id %s )',
+                          comment['Id'], comment['external_id__c'])
+                continue
 
             LOG.info(
-                'Copying SalesForce comment to JIRA issue: %s',
-                comment['Id'])
+                'Copying SalesForce comment %s ,  to JIRA issue %s',
+                comment['Id'], issue.key)
 
             comment_body = self.jira_comment_format.render(comment=comment['Comment__c'],
                                                            created_at=comment['CreatedDate'],
@@ -231,8 +251,8 @@ class Bridge(object):
             issue_comment = self.jira_client.add_comment(issue, comment_body)
             data = {'external_id__c': issue_comment.id}
             LOG.info(
-                'Update SalesForce comment with JIRA comment-id: %s',
-                issue_comment.id)
+                'Update SalesForce comment %s, with JIRA comment-id: %s',
+                comment['Id'], issue_comment.id)
 
             self.sfdc_client.update_comment(comment['Id'], data)
             self.store.sadd('seen_comments_id', issue_comment.id)
@@ -300,7 +320,7 @@ class Bridge(object):
             # If current state for Issue -- Support Investigating (and OnHold - for Ticket) ---
             # we get error when we change Ticket-status to Solve. I think problem in
             # Issue-status workflow
-            if issue.fields.status.name == forward_to[0]:
+            if issue.fields.status.name == forward_to[0] and len(forward_to) > 1:
                 forward_to = forward_to[1:]
 
             LOG.info('Move-list for move Issue %s', forward_to)
