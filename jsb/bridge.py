@@ -80,8 +80,6 @@ class Bridge(object):
                           'SF does not have a ticket with ID: %s', ticket_id)
         if not ticket:
             if not self.is_issue_eligible(issue):
-                LOG.debug('Skipping previously untracked, '
-                          'ineligible issue %s', issue.key)
                 return False
             LOG.info('Creating SF ticket for JIRA issue %s', issue.key)
             ticket_id = self.create_ticket(issue)
@@ -91,8 +89,6 @@ class Bridge(object):
 
         elif ticket['Status__c'] == self.sf_ticket_close_status:
             if not self.is_issue_eligible(issue):
-                LOG.debug('Skipping previously closed, ineligible '
-                          'issue %s', issue.key)
                 return False
             LOG.info('Creating followup SF ticket for '
                      'JIRA issue %s', issue.key)
@@ -299,7 +295,7 @@ class Bridge(object):
 
         sf_status_changed = last_seen_sf_status != ticket['Status__c']
         if sf_status_changed:
-            LOG.debug('Zendesk status changed')
+            LOG.debug('SF status changed')
 
         if jira_status_changed or sf_status_changed:
             new_issue_status, new_ticket_status = self.process_sync_status(
