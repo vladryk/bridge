@@ -86,6 +86,9 @@ class Bridge(object):
             LOG.info('Creating SF ticket for JIRA issue %s', issue.key)
             ticket_id = self.create_ticket(issue)
 
+        elif ticket['Closed__c']:
+            self.sfdc_client.update_ticket(ticket['Id'], data={'Closed__c': False})
+
         elif ticket['Status__c'] == self.sf_ticket_close_status:
             if not self.is_issue_eligible(issue):
                 LOG.debug('Skipping previously closed, ineligible '
@@ -332,7 +335,7 @@ class Bridge(object):
                 transitions = self.jira_client.transitions(self.jira_client.issue(issue.key))
                 available_transitions = dict((t['name'], t['id']) for t in transitions)
 
-            if ticket['Status__c'] == self.sf_ticket_solve_status:
+            if ticket['Status__c'] in self.sf_ticket_solve_status:
                 issue.update(fields={'resolution': self.jira_resolution_status})
             return forward_to[-1], ticket['Status__c']
 

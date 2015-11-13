@@ -49,7 +49,9 @@ jira_possible_status:
   Closed: Closed
 
 sf_ticket_close_status: Closed
-sf_ticket_solve_status: Solved
+sf_ticket_solve_status:
+  - Solved
+  - Closed
 
 sf_possible_status:
   New:
@@ -66,6 +68,10 @@ sf_possible_status:
   Solved:
     - Support Investigating
     - Resolved
+  Closed:
+    - Support Investigating
+    - Resolved
+    - Closed
 
 
 # Format used when creating tickets in SF
