@@ -2,6 +2,7 @@ import logging
 import os
 import sys
 import yaml
+import shutil
 
 from jsb import LOG
 from jira import JIRA
@@ -45,10 +46,13 @@ def main():
                          username=config['sfdc_username'],
                          password=config['sfdc_password'],
                          auth_url=config['sfdc_auth_url'])
-
+    
     sfdc_client = Client(sfdc_oauth2)
 
+    bridge_cache_path = os.path.join(config['storage_dir'], 'bridge_cache.yml')
     storage_path = os.path.join(config['storage_dir'], 'state.yml')
+    if os.path.exists(bridge_cache_path):
+        shutil.copy(bridge_cache_path, storage_path)
     store = Store(FileBackend(storage_path))
 
     bridge = Bridge(sfdc_client, jira_client, store, config)
@@ -57,6 +61,7 @@ def main():
         bridge.issue_jql = args.query
 
     bridge.sync_issues()
+    shutil.move(storage_path, bridge_cache_path)
 
 if __name__ == '__main__':
     main()
