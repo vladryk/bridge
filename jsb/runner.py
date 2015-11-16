@@ -49,12 +49,12 @@ def main():
     
     sfdc_client = Client(sfdc_oauth2)
 
-    bridge_cache_path = os.path.join(config['storage_dir'], 'bridge_cache.yml')
+    # bridge_cache_path = os.path.join(config['storage_dir'], 'bridge_cache.yml')
     storage_path = os.path.join(config['storage_dir'], 'state.yml')
-    if os.path.exists(storage_path):
-        os.remove(storage_path)
-    if os.path.exists(bridge_cache_path):
-        shutil.copy(bridge_cache_path, storage_path)
+    # if os.path.exists(storage_path):
+    #     os.remove(storage_path)
+    # if os.path.exists(bridge_cache_path):
+    #     shutil.copy(bridge_cache_path, storage_path)
     store = Store(FileBackend(storage_path))
 
     bridge = Bridge(sfdc_client, jira_client, store, config)
@@ -63,7 +63,7 @@ def main():
         bridge.issue_jql = args.query
 
     bridge.sync_issues()
-    shutil.move(storage_path, bridge_cache_path)
+    # shutil.move(storage_path, bridge_cache_path)
 
 if __name__ == '__main__':
     main()

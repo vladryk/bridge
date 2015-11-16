@@ -1,5 +1,6 @@
 import os
 import yaml
+import shutil
 
 
 class Store(object):
@@ -82,6 +83,7 @@ class Backend(object):
 
 class FileBackend(Backend):
     def __init__(self, path):
+        self.tmp_path = '/tmp/tmp_state.yml'
         self.path = path
 
     def load(self):
@@ -92,8 +94,10 @@ class FileBackend(Backend):
         return {}
 
     def save(self, data):
-        with open(self.path, 'w') as fp:
+        shutil.copy(self.path, self.tmp_path)
+        with open(self.tmp_path, 'w') as fp:
             yaml.dump(data, fp, default_flow_style=False)
+        shutil.move(self.tmp_path, self.path)
 
 
 class InMemoryBackend(Backend):
