@@ -51,6 +51,8 @@ def main():
 
     bridge_cache_path = os.path.join(config['storage_dir'], 'bridge_cache.yml')
     storage_path = os.path.join(config['storage_dir'], 'state.yml')
+    if os.path.exists(storage_path):
+        os.remove(storage_path)
     if os.path.exists(bridge_cache_path):
         shutil.copy(bridge_cache_path, storage_path)
     store = Store(FileBackend(storage_path))
