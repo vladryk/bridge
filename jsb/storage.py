@@ -82,8 +82,8 @@ class Backend(object):
 
 
 class FileBackend(Backend):
-    def __init__(self, path):
-        self.tmp_path = '/tmp/tmp_state.yml'
+    def __init__(self, path, tmp_path):
+        self.tmp_path = tmp_path
         self.path = path
 
     def load(self):
@@ -94,7 +94,6 @@ class FileBackend(Backend):
         return {}
 
     def save(self, data):
-        shutil.copy(self.path, self.tmp_path)
         with open(self.tmp_path, 'w') as fp:
             yaml.dump(data, fp, default_flow_style=False)
         shutil.move(self.tmp_path, self.path)
