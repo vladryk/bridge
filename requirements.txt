@@ -4,6 +4,7 @@
 # python-dateutil
 
 jinja2
+MarkupSafe>=0.23
 cffi>=1.2.1
 cryptography>=1.0.2
 enum34>=1.0.4
@@ -25,3 +26,4 @@ simple-salesforce>=0.68.0
 six>=1.10.0
 tlslite>=0.4.9
 wheel>=0.24.0
+
