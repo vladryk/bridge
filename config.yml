@@ -53,6 +53,41 @@ sf_ticket_solve_status:
   - Solved
   - Closed
 
+reference_jira_sf_statuses:
+  New:
+    Open:
+      Support Investigating
+    Pending:
+      Support Investigating
+    Solved:
+      - Support Investigating
+      - Resolve
+    On Hold:
+      - Support Investigating
+  Waiting Support:
+    Pending:
+      - Support Investigating
+      - Waiting Reporter      #Request Information
+    Solved:
+      - Support Investigating
+      - Resolve
+    On Hold:
+      - Support Investigating
+  Waiting Reporter:
+    Solved:
+      - Support Investigating
+      - Resolve
+    On Hold:
+      - Support Investigating
+  Support Investigating:
+    Pending:
+      - Waiting Reporter      #Request Information
+    Solved:
+      - Resolve
+
+
+
+
 sf_possible_status:
   New:
     - New
@@ -63,8 +98,8 @@ sf_possible_status:
     - Waiting Reporter
   Open:
     - Support Investigating
-    - Waiting Reporter
-    - Waiting Support
+#    - Waiting Reporter
+#    - Waiting Support
   Solved:
     - Support Investigating
     - Resolved
