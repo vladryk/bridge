@@ -23,6 +23,7 @@ class Bridge(object):
         self.sf_possible_status = config['sf_possible_status']
         self.sf_ticket_close_status = config['sf_ticket_close_status']
         self.sf_ticket_solve_status = config['sf_ticket_solve_status']
+        self.reference_jira_sf_statuses = config['reference_jira_sf_statuses']
 
         self.jira_resolution_status = config['jira_resolution_status']
         self.jira_description_field = config['jira_description_field']
@@ -297,7 +298,7 @@ class Bridge(object):
             LOG.debug('SF status changed')
 
         if jira_status_changed or sf_status_changed:
-            new_issue_status, new_ticket_status = self.process_sync_status(
+            new_issue_status, new_ticket_status = self.new_process_sync_status(
                 issue, ticket, jira_status_changed, sf_status_changed)
             self.store.set('last_seen_jira_status:{}'.format(issue.key), new_issue_status)
             self.store.set('last_seen_sf_status:{}'.format(ticket['Id']), new_ticket_status)
@@ -333,6 +334,68 @@ class Bridge(object):
             if ticket['Status__c'] in self.sf_ticket_solve_status:
                 issue.update(fields={'resolution': self.jira_resolution_status})
             return forward_to[-1], ticket['Status__c']
+
+        else:
+            data = {
+                'Status__c': self.map_status_jira_sf(status_name_issue)
+            }
+            self.sfdc_client.update_ticket(ticket['Id'], data)
+            LOG.debug('Updated ticket status: %s', ticket['Id'])
+            return status_name_issue, self.map_status_jira_sf(status_name_issue)
+
+    def new_process_sync_status(self, issue, ticket, jira_status_changed, sf_status_changed):
+        status_name_issue = issue.fields.status.name
+        if sf_status_changed and not jira_status_changed:
+            jira_status_from_conf = self.reference_jira_sf_statuses.get(status_name_issue)
+            possible_ticket_status = jira_status_from_conf.get(ticket['Status__c'])
+            if not jira_status_from_conf or not possible_ticket_status:
+                LOG.info('You try to change SF status. '
+                         'Jira status name now %s, '
+                         'Jira status name from conf %s, '
+                         'SF status %s, '
+                         'Possible ticket status %s. '
+                         'Please see conf file. SF status will not change',
+                         status_name_issue, jira_status_from_conf,
+                         ticket['Status__c'], possible_ticket_status)
+                sf_status_changed = True
+                jira_status_changed = True
+        # forward_to = self.sf_possible_status.get(ticket['Status__c'])
+        # if not forward_to:
+        #     LOG.info('Invalid value issue-status: %s for Ticket-status: %s',
+        #              issue.fields.status.name, ticket['Status__c'])
+        #     sf_status_changed = True
+        #     jira_status_changed = True
+
+        if sf_status_changed and not jira_status_changed:
+            workflow = self.reference_jira_sf_statuses.get(status_name_issue).get(ticket['Status__c'])
+            if not workflow:
+                LOG.info('Not found schema. Current Jira status: %s,'
+                         ' SF status: %s', status_name_issue, ticket['Status__c'])
+            transitions = self.jira_client.transitions(self.jira_client.issue(issue.key))
+            available_transitions = dict((t['name'], t['id']) for t in transitions)
+            LOG.info('For current Jira-state %s, possible statuses is: %s, List of moving statuses %s ',
+                     status_name_issue, available_transitions, workflow)
+
+            # If current state for Issue -- Support Investigating (and OnHold - for Ticket) ---
+            # we get error when we change Ticket-status to Solve. I think problem in
+            # Issue-status workflow
+            # if issue.fields.status.name == forward_to[0] and len(forward_to) > 1:
+            #     forward_to = forward_to[1:]
+
+            # LOG.info('Move-list for move Issue %s', forward_to)
+            # LOG.info('Start Issue-status %s', issue.fields.status.name)
+
+            for status in workflow:
+                LOG.info('Try to move issue to %s status', status)
+                result = self.jira_client.transition_issue(issue, available_transitions[status])
+                LOG.info('Moved issue to %s status', status)
+                transitions = self.jira_client.transitions(self.jira_client.issue(issue.key))
+                available_transitions = dict((t['name'], t['id']) for t in transitions)
+                LOG.info('Now, possible statuses: %s ', available_transitions)
+
+            if ticket['Status__c'] in self.sf_ticket_solve_status:
+                issue.update(fields={'resolution': self.jira_resolution_status})
+            return workflow[-1], ticket['Status__c']
 
         else:
             data = {
