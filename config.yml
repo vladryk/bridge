@@ -1,24 +1,22 @@
 
 
-# JIRA auth
-jira_url: http://localhost:8070
-jira_username: SymantecJiraBot
-jira_password: test
 
 assignee_sf_name:
   - Symantec
   - JiraBot
 
-symantec_assignee_username: wayland
+symantec_assignee_username: Wayland_Shiu
 
 # State storage path
 storage_dir: /tmp
 
 # JQL for matching issues
-jira_issue_jql: 'project = MY AND ("Responsible Team" = "Openstack" or "Responsible Team" = "OBS")'
+jira_issue_jql: 'project = CFS AND ("Responsible Team" = "Openstack" or "Responsible Team" = "OBS" or zd_reference IS NOT EMPTY) AND SFDC-JIRA~234'
 
 # Issue field used to hold reference to the SFDC case ID
-jira_reference_field: customfield_10100
+#jira_reference_field: customfield_10100
+jira_reference_field: customfield_13000
+
 
 
 
@@ -42,11 +40,11 @@ jira_resolution_status:
 
 jira_possible_status:
   New: New
-  Support Investigating: On Hold
+  Support Investigating: On Hold  # FIXME need Open
   Waiting Reporter: Pending
   Waiting Support: Open
   Resolved: Solved
-  Closed: Closed
+  Closed: Solved
 
 sf_ticket_close_status: Closed
 sf_ticket_solve_status:
@@ -56,32 +54,32 @@ sf_ticket_solve_status:
 reference_jira_sf_statuses:
   New:
     Open:
-      Support Investigating
+      - Start Investigation
     Pending:
-      Support Investigating
+      - Start Investigation
     Solved:
-      - Support Investigating
+      - Start Investigation
       - Resolve
     On Hold:
-      - Support Investigating
+      - Start Investigation
   Waiting Support:
     Pending:
-      - Support Investigating
-      - Waiting Reporter      #Request Information
+      - Start Investigation
+      - Wait Reporter      #Request Information
     Solved:
-      - Support Investigating
+      - Start Investigation
       - Resolve
     On Hold:
-      - Support Investigating
+      - Start Investigation
   Waiting Reporter:
     Solved:
-      - Support Investigating
+      - Start Investigation
       - Resolve
     On Hold:
-      - Support Investigating
+      - Start Investigation
   Support Investigating:
     Pending:
-      - Waiting Reporter      #Request Information
+      - Wait Reporter      #Request Information
     Solved:
       - Resolve
 
