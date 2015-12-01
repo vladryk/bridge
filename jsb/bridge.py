@@ -303,45 +303,45 @@ class Bridge(object):
             self.store.set('last_seen_jira_status:{}'.format(issue.key), new_issue_status)
             self.store.set('last_seen_sf_status:{}'.format(ticket['Id']), new_ticket_status)
 
-    def process_sync_status(self, issue, ticket, jira_status_changed, sf_status_changed):
-        status_name_issue = issue.fields.status.name
-        forward_to = self.sf_possible_status.get(ticket['Status__c'])
-        if not forward_to:
-            LOG.info('Invalid value issue-status: %s for Ticket-status: %s',
-                     issue.fields.status.name, ticket['Status__c'])
-            sf_status_changed = True
-            jira_status_changed = True
-
-        if sf_status_changed and not jira_status_changed:
-            transitions = self.jira_client.transitions(self.jira_client.issue(issue.key))
-            available_transitions = dict((t['name'], t['id']) for t in transitions)
-
-            # If current state for Issue -- Support Investigating (and OnHold - for Ticket) ---
-            # we get error when we change Ticket-status to Solve. I think problem in
-            # Issue-status workflow
-            if issue.fields.status.name == forward_to[0] and len(forward_to) > 1:
-                forward_to = forward_to[1:]
-
-            LOG.info('Move-list for move Issue %s', forward_to)
-            LOG.info('Start Issue-status %s', issue.fields.status.name)
-
-            for status in forward_to:
-                result = self.jira_client.transition_issue(issue, available_transitions[status])
-                LOG.info('Moved status issue to %s', status)
-                transitions = self.jira_client.transitions(self.jira_client.issue(issue.key))
-                available_transitions = dict((t['name'], t['id']) for t in transitions)
-
-            if ticket['Status__c'] in self.sf_ticket_solve_status:
-                issue.update(fields={'resolution': self.jira_resolution_status})
-            return forward_to[-1], ticket['Status__c']
-
-        else:
-            data = {
-                'Status__c': self.map_status_jira_sf(status_name_issue)
-            }
-            self.sfdc_client.update_ticket(ticket['Id'], data)
-            LOG.debug('Updated ticket status: %s', ticket['Id'])
-            return status_name_issue, self.map_status_jira_sf(status_name_issue)
+    # def process_sync_status(self, issue, ticket, jira_status_changed, sf_status_changed):
+    #     status_name_issue = issue.fields.status.name
+    #     forward_to = self.sf_possible_status.get(ticket['Status__c'])
+    #     if not forward_to:
+    #         LOG.info('Invalid value issue-status: %s for Ticket-status: %s',
+    #                  issue.fields.status.name, ticket['Status__c'])
+    #         sf_status_changed = True
+    #         jira_status_changed = True
+    #
+    #     if sf_status_changed and not jira_status_changed:
+    #         transitions = self.jira_client.transitions(self.jira_client.issue(issue.key))
+    #         available_transitions = dict((t['name'], t['id']) for t in transitions)
+    #
+    #         # If current state for Issue -- Support Investigating (and OnHold - for Ticket) ---
+    #         # we get error when we change Ticket-status to Solve. I think problem in
+    #         # Issue-status workflow
+    #         if issue.fields.status.name == forward_to[0] and len(forward_to) > 1:
+    #             forward_to = forward_to[1:]
+    #
+    #         LOG.info('Move-list for move Issue %s', forward_to)
+    #         LOG.info('Start Issue-status %s', issue.fields.status.name)
+    #
+    #         for status in forward_to:
+    #             result = self.jira_client.transition_issue(issue, available_transitions[status])
+    #             LOG.info('Moved status issue to %s', status)
+    #             transitions = self.jira_client.transitions(self.jira_client.issue(issue.key))
+    #             available_transitions = dict((t['name'], t['id']) for t in transitions)
+    #
+    #         if ticket['Status__c'] in self.sf_ticket_solve_status:
+    #             issue.update(fields={'resolution': self.jira_resolution_status})
+    #         return forward_to[-1], ticket['Status__c']
+    #
+    #     else:
+    #         data = {
+    #             'Status__c': self.map_status_jira_sf(status_name_issue)
+    #         }
+    #         self.sfdc_client.update_ticket(ticket['Id'], data)
+    #         LOG.debug('Updated ticket status: %s', ticket['Id'])
+    #         return status_name_issue, self.map_status_jira_sf(status_name_issue)
 
     def new_process_sync_status(self, issue, ticket, jira_status_changed, sf_status_changed):
         status_name_issue = issue.fields.status.name
