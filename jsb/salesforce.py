@@ -102,7 +102,6 @@ class Client(object):
         url = self.instance_url + url
 
         response = requests.request(method, url, headers=headers, **kwargs)
-        print response.text
         response.raise_for_status()
 
         return response
