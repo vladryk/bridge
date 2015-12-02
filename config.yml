@@ -1,6 +1,5 @@
 
 
-
 assignee_sf_name:
   - Symantec
   - JiraBot
@@ -40,7 +39,7 @@ jira_resolution_status:
 
 jira_possible_status:
   New: New
-  Support Investigating: On Hold  # FIXME need Open
+  Support Investigating: Open
   Waiting Reporter: Pending
   Waiting Support: Open
   Resolved: Solved
@@ -60,9 +59,9 @@ reference_jira_sf_statuses:
     Solved:
       - Start Investigation
       - Resolve
-#    Closed:
-#      - Start Investigation
-#      - Resolve
+    Closed:
+      - Start Investigation
+      - Resolve
     On Hold:
       - Start Investigation
   Waiting Support:
@@ -74,49 +73,33 @@ reference_jira_sf_statuses:
       - Resolve
     On Hold:
       - Start Investigation
-#    Closed:
-#      - Start Investigation
-#      - Resolve
+    Closed:
+      - Start Investigation
+      - Resolve
   Waiting Reporter:
     Solved:
       - Start Investigation
       - Resolve
     On Hold:
       - Start Investigation
-#    Closed:
-#      - Start Investigation
-#      - Resolve
+    Closed:
+      - Start Investigation
+      - Resolve
   Support Investigating:
     Pending:
       - Wait Reporter      #Request Information
     Solved:
       - Resolve
-#    Closed:
-#      - Resolve
-
-
-
-
-sf_possible_status:
-  New:
-    - New
-  On Hold:
-    - Support Investigating
-  Pending:
-    - Support Investigating
-    - Waiting Reporter
-  Open:
-    - Support Investigating
-#    - Waiting Reporter
-#    - Waiting Support
-  Solved:
-    - Support Investigating
-    - Resolved
-  Closed:
-    - Support Investigating
-    - Resolved
-    - Closed
-
+    Closed:
+      - Resolve
+    On Hold:
+      - Skip
+  Resolved:
+    Pending:
+      - Start Investigation
+      - Wait Reporter
+    On Hold:
+      - Start Investigation
 
 # Format used when creating tickets in SF
 sf_initial_comment_format: |
