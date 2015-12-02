@@ -20,6 +20,7 @@ jira_reference_field: customfield_13000
 
 
 jira_description_field: description
+jira_summary_field: summary
 
 jira_priority_map:
   Blocker: Sev 3
@@ -137,3 +138,6 @@ jira_comment_format: |
 
 # Delimeter used to strip signature from SF comments synced to JIRA
 sf_signature_delimeter: ---
+
+# Format used for the subject when creating tickets in SF
+sf_summary_format: "[PROJIRA] [{{ issue.key }}] {{ issue.fields.summary }}"

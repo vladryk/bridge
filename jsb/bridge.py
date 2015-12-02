@@ -26,7 +26,9 @@ class Bridge(object):
 
         self.jira_resolution_status = config['jira_resolution_status']
         self.jira_description_field = config['jira_description_field']
+        self.jira_summary_field = config['jira_summary_field']
 
+        self.sf_initial_summary = jinja2.Template(config['sf_summary_format'])
         self.sf_initial_comment_format = jinja2.Template(config['sf_initial_comment_format'])
         self.sf_followup_comment_format = jinja2.Template(config['sf_followup_comment_format'])
         self.sf_comment_format = jinja2.Template(config['sf_comment_format'])
@@ -167,9 +169,10 @@ class Bridge(object):
 
         comment = self.sf_initial_comment_format.render(issue=issue,
                                                         jira_url=self.jira_url)
+        summary = self.sf_initial_summary.render(issue=issue)
 
         data = {
-            'Subject__c': issue.fields.summary,
+            'Subject__c': summary,
             'Description__c': comment,
             'External_id__c': issue.key,
             'Requester__c': reporter,
@@ -178,7 +181,8 @@ class Bridge(object):
 
         result = self.sfdc_client.create_ticket(data)
         LOG.info('Successful create ticket %s,  for issue %s', result['id'], issue.key)
-        issue.update(fields={self.jira_description_field: comment})
+        issue.update(fields={self.jira_description_field: comment,
+                             self.jira_summary_field: summary})
 
         return result['id']
 
