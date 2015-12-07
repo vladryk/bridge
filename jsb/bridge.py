@@ -1,3 +1,4 @@
+import re
 import jinja2
 from dateutil.parser import parse
 from jsb import LOG
@@ -28,6 +29,7 @@ class Bridge(object):
         self.jira_description_field = config['jira_description_field']
         self.jira_summary_field = config['jira_summary_field']
 
+        self.sf_ticket_number_search = config['sf_ticket_number_search']
         self.sf_initial_summary = jinja2.Template(config['sf_summary_format'])
         self.sf_initial_comment_format = jinja2.Template(config['sf_initial_comment_format'])
         self.sf_followup_comment_format = jinja2.Template(config['sf_followup_comment_format'])
@@ -123,12 +125,11 @@ class Bridge(object):
         LOG.debug('Trying to create new ticket for re-opened issue %s', issue.key)
         assignee_name = getattr(issue.fields.assignee, 'name', self.jira_identity)
         reporter = getattr(issue.fields.reporter, 'displayName', '')
-        discription = getattr(issue.fields, 'description', '')
         comment = self.sf_followup_comment_format.render(issue=issue,
                                                          jira_url=self.jira_url)
         data = {
             'Subject__c': issue.fields.summary,
-            'Description__c': discription,
+            'Description__c': '',
             'External_id__c': issue.key,
             'Requester__c': reporter,
             'Assignee__c': assignee_name,
@@ -137,6 +138,13 @@ class Bridge(object):
 
         result = self.sfdc_client.create_ticket(data)
         LOG.debug('Successful create new ticket %s,  for old issue %s', result['id'], issue.key)
+
+        ticket = self.sfdc_client.ticket(result['id'])
+        description = self._description_followup_ticket(getattr(issue.fields, 'description', ''), ticket)
+        data = {
+                'Description__c': description,
+                }
+        self.sfdc_client.update_ticket(ticket['Id'], data)
 
         data = {
                 'Comment__c': comment,
@@ -150,6 +158,18 @@ class Bridge(object):
         LOG.debug('Finish bind old jira comments for new ticket')
 
         return result['id']
+
+    def _description_followup_ticket(self, description, ticket):
+        case_id = ticket['Case_id']
+        if description == '':
+            return description
+        try:
+            ticket_number = re.search(self.sf_ticket_number_search, description)
+            gr1=ticket_number.group(1)
+            description=description.replace(gr1, case_id, 1)
+        except:
+            return description
+        return description
 
     def _change_sf_comments_id(self, issue, new_ticket_id):
         for comment in issue.fields.comment.comments:
@@ -166,20 +186,22 @@ class Bridge(object):
         LOG.info('Trying to create ticket for issue %s', issue.key)
         assignee_name = getattr(issue.fields.assignee, 'name', self.jira_identity)
         reporter = getattr(issue.fields.reporter, 'displayName', '')
-
-        comment = self.sf_initial_comment_format.render(issue=issue,
-                                                        jira_url=self.jira_url)
         summary = self.sf_initial_summary.render(issue=issue)
 
         data = {
             'Subject__c': summary,
-            'Description__c': comment,
+            'Description__c': '',
             'External_id__c': issue.key,
             'Requester__c': reporter,
             'Assignee__c': assignee_name,
         }
 
         result = self.sfdc_client.create_ticket(data)
+        ticket = self.sfdc_client.ticket(result['id'])
+        case_id = ticket['Case_id']
+        comment = self.sf_initial_comment_format.render(issue=issue,
+                                                        jira_url=self.jira_url,
+                                                        case_id=case_id)
         LOG.info('Successful create ticket %s,  for issue %s', result['id'], issue.key)
         issue.update(fields={self.jira_description_field: comment,
                              self.jira_summary_field: summary})
