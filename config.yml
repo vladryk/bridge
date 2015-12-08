@@ -66,6 +66,8 @@ reference_jira_sf_statuses:
     On Hold:
       - Start Investigation
   Waiting Support:
+    Open:
+      - Start Investigation
     Pending:
       - Start Investigation
       - Wait Reporter      #Request Information
@@ -78,6 +80,8 @@ reference_jira_sf_statuses:
       - Start Investigation
       - Resolve
   Waiting Reporter:
+    Open:
+      - Start Investigation
     Solved:
       - Start Investigation
       - Resolve
@@ -87,6 +91,8 @@ reference_jira_sf_statuses:
       - Start Investigation
       - Resolve
   Support Investigating:
+    Open:
+      - Skip
     Pending:
       - Wait Reporter      #Request Information
     Solved:
@@ -96,6 +102,8 @@ reference_jira_sf_statuses:
     On Hold:
       - Skip
   Resolved:
+    Open:
+      - Start Investigation
     Pending:
       - Start Investigation
       - Wait Reporter
