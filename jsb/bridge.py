@@ -133,7 +133,8 @@ class Bridge(object):
             'External_id__c': issue.key,
             'Requester__c': reporter,
             'Assignee__c': assignee_name,
-            'Closed_Case_Id__c': closed_ticket_id
+            'Closed_Case_Id__c': closed_ticket_id,
+            'Status__c': self.jira_possible_status['New']
         }
 
         result = self.sfdc_client.create_ticket(data)
@@ -156,6 +157,10 @@ class Bridge(object):
         LOG.debug('Start bind old jira comments for new ticket')
         self._change_sf_comments_id(issue, result['id'])
         LOG.debug('Finish bind old jira comments for new ticket')
+
+        # followup ticket's status always set to 'New'
+        self.store.set('last_seen_jira_status:{}'.format(issue.key), issue.fields.status.name)
+        self.store.set('last_seen_sf_status:{}'.format(ticket['Id']), self.jira_possible_status['New'])
 
         return result['id']
 
@@ -329,6 +334,7 @@ class Bridge(object):
             self.store.set('last_seen_sf_status:{}'.format(ticket['Id']), new_ticket_status)
 
     def new_process_sync_status(self, issue, ticket, jira_status_changed, sf_status_changed):
+        owned = issue.fields.assignee.name == self.jira_identity
         status_name_issue = issue.fields.status.name
         if sf_status_changed and not jira_status_changed:
             jira_status_from_conf = self.reference_jira_sf_statuses.get(status_name_issue)
@@ -369,12 +375,23 @@ class Bridge(object):
             return issue.fields.status.name, ticket['Status__c']
 
         else:
-            data = {
-                'Status__c': self.map_status_jira_sf(status_name_issue)
-            }
+            new_sf_status = self.map_status_jira_sf(status_name_issue)
+            if not owned and status_name_issue not in self.jira_solved_statuses:
+                return status_name_issue, ticket['Status__c']
+
+            if (ticket['Status__c'] in self.sf_ticket_solve_status and
+                new_sf_status not in self.sf_ticket_solve_status):
+                data = {
+                    'Status__c': self.jira_possible_status['New']
+                }
+                new_sf_status = self.jira_possible_status['New']
+            else:
+                data = {
+                    'Status__c': new_sf_status
+                }
             self.sfdc_client.update_ticket(ticket['Id'], data)
             LOG.debug('Updated ticket status: %s', ticket['Id'])
-            return status_name_issue, self.map_status_jira_sf(status_name_issue)
+            return status_name_issue, new_sf_status
 
     def sync_assignee(self, issue, ticket):
         last_seen_jira_assignee = self.store.get('last_seen_jira_assignee:{}'.format(issue.key))

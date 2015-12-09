@@ -46,6 +46,45 @@ jira_possible_status:
   Resolved: Solved
   Closed: Solved
 
+#jira_possible_status:
+#  New:
+#    New:
+#      - New
+#    Closed:
+#      - Solved
+#    Resolved:
+#      - Solved
+#  Open:
+#    Support Investigating:
+#      - Open
+#    Closed:
+#      - Solved
+#    Resolved:
+#      - Solved
+#  Pending:
+#    Waiting Reporter:
+#      - Pending
+#    Waiting Support:
+#      - Open
+#    Closed:
+#      - Solved
+#    Resolved:
+#      - Solved
+#  Solved:
+#    Support Investigating:
+#      - New
+#    Closed:
+#      - Solved
+#    Resolved:
+#      - Solved
+#  On Hold:
+#    Closed:
+#      - Solved
+#    Resolved:
+#      - Solved
+
+
+
 sf_ticket_close_status: Closed
 sf_ticket_solve_status:
   - Solved
