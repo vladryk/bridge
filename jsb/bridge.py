@@ -165,7 +165,7 @@ class Bridge(object):
         return result['id']
 
     def _description_followup_ticket(self, description, ticket):
-        case_id = ticket['Case_id']
+        case_id = '0000'  # ticket['Case_id']
         if description == '':
             return description
         try:
@@ -203,7 +203,7 @@ class Bridge(object):
 
         result = self.sfdc_client.create_ticket(data)
         ticket = self.sfdc_client.ticket(result['id'])
-        case_id = ticket['Case_id']
+        case_id = '0000'  # ticket['Case_id']
         comment = self.sf_initial_comment_format.render(issue=issue,
                                                         jira_url=self.jira_url,
                                                         case_id=case_id)
