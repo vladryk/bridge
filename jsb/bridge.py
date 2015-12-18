@@ -9,6 +9,7 @@ class Bridge(object):
         self.sfdc_client = sfdc_client
         self.jira_client = jira_client
         self.store = store
+        self.force_assignee = False
 
         self.issue_jql = config['jira_issue_jql']
 
@@ -327,7 +328,7 @@ class Bridge(object):
         if sf_status_changed:
             LOG.debug('SF status changed')
 
-        if jira_status_changed or sf_status_changed:
+        if jira_status_changed or sf_status_changed or self.force_assignee:
             new_issue_status, new_ticket_status = self.new_process_sync_status(
                 issue, ticket, jira_status_changed, sf_status_changed)
             self.store.set('last_seen_jira_status:{}'.format(issue.key), new_issue_status)
@@ -336,6 +337,17 @@ class Bridge(object):
     def new_process_sync_status(self, issue, ticket, jira_status_changed, sf_status_changed):
         owned = issue.fields.assignee.name == self.jira_identity
         status_name_issue = issue.fields.status.name
+
+        if self.force_assignee and not sf_status_changed and not jira_status_changed:
+            # If issue was only unassigned to bot - need set SF-ticket status to Open
+            new_sf_status = self.jira_possible_status['Support Investigating']
+            data = {
+                    'Status__c': new_sf_status
+                }
+            self.sfdc_client.update_ticket(ticket['Id'], data)
+            LOG.debug('Updated ticket status: %s', ticket['Id'])
+            return status_name_issue, new_sf_status
+
         if sf_status_changed and not jira_status_changed:
             jira_status_from_conf = self.reference_jira_sf_statuses.get(status_name_issue)
             possible_ticket_status = jira_status_from_conf.get(ticket['Status__c'])
@@ -394,6 +406,7 @@ class Bridge(object):
             return status_name_issue, new_sf_status
 
     def sync_assignee(self, issue, ticket):
+        self.force_assignee = False
         last_seen_jira_assignee = self.store.get('last_seen_jira_assignee:{}'.format(issue.key))
         last_seen_sf_assignee = self.store.get('last_seen_sf_assignee:{}'.format(ticket['Id']))
 
@@ -405,7 +418,7 @@ class Bridge(object):
             self.jira_client.assign_issue(issue, self.jira_identity)
             issue = self.refresh_issue(issue)
 
-        ticket_assignee_name = ticket['Assignee__c']
+        ticket_assignee_name = current_ticket_assignee_name = ticket['Assignee__c']
         jira_assignee_name = getattr(issue.fields.assignee, 'name', None)
 
         if issue.fields.assignee.name != last_seen_jira_assignee:
@@ -413,7 +426,13 @@ class Bridge(object):
                 ticket_assignee_name = self.assignee_sf_name[0]
             else:
                 ticket_assignee_name = self.assignee_sf_name[1]
+
             data = {'Assignee__c': ticket_assignee_name}
+
+            if (current_ticket_assignee_name == self.assignee_sf_name[0] and
+                ticket_assignee_name == self.assignee_sf_name[1]):
+                self.force_assignee = True
+
             self.sfdc_client.update_ticket(ticket['Id'], data)
 
         elif ticket['Assignee__c'] != last_seen_sf_assignee:
