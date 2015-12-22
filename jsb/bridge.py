@@ -200,6 +200,7 @@ class Bridge(object):
             'External_id__c': issue.key,
             'Requester__c': reporter,
             'Assignee__c': assignee_name,
+            'Status__c': self.jira_possible_status['New']
         }
 
         result = self.sfdc_client.create_ticket(data)
@@ -211,6 +212,9 @@ class Bridge(object):
         LOG.info('Successful create ticket %s,  for issue %s', result['id'], issue.key)
         issue.update(fields={self.jira_description_field: comment,
                              self.jira_summary_field: summary})
+
+        self.store.set('last_seen_jira_status:{}'.format(issue.key), issue.fields.status.name)
+        self.store.set('last_seen_sf_status:{}'.format(ticket['Id']), self.jira_possible_status['New'])
 
         return result['id']
 
@@ -392,23 +396,41 @@ class Bridge(object):
         else:
             new_sf_status = self.map_status_jira_sf(status_name_issue)
 
-            if (not owned and ticket['Status__c'] in self.sf_ticket_solve_status and
-                new_sf_status not in self.sf_ticket_solve_status):
-                pass
+            # if (not owned and ticket['Status__c'] in self.sf_ticket_solve_status and
+            #     new_sf_status not in self.sf_ticket_solve_status):
+            #     pass
 
-            if not owned and status_name_issue not in self.jira_solved_statuses:
+            if new_sf_status in self.sf_ticket_solve_status:
+                data = {
+                    'Status__c': new_sf_status
+                }
+
+            elif ticket['Status__c'] == 'On Hold' and not owned:
                 return status_name_issue, ticket['Status__c']
 
-            if (ticket['Status__c'] in self.sf_ticket_solve_status and
-                new_sf_status not in self.sf_ticket_solve_status):
+            elif ticket['Status__c'] == 'On Hold' and owned:
                 data = {
-                    'Status__c': self.jira_possible_status['New']
+                    'Status__c': new_sf_status
                 }
-                new_sf_status = self.jira_possible_status['New']
+
             else:
                 data = {
                     'Status__c': new_sf_status
                 }
+
+            # if not owned and status_name_issue not in self.jira_solved_statuses:
+            #     return status_name_issue, ticket['Status__c']
+            #
+            # if (ticket['Status__c'] in self.sf_ticket_solve_status and
+            #     new_sf_status not in self.sf_ticket_solve_status):
+            #     data = {
+            #         'Status__c': self.jira_possible_status['New']
+            #     }
+            #     new_sf_status = self.jira_possible_status['New']
+            # else:
+            #     data = {
+            #         'Status__c': new_sf_status
+            #     }
             self.sfdc_client.update_ticket(ticket['Id'], data)
             LOG.debug('Updated ticket status: %s', ticket['Id'])
             return status_name_issue, new_sf_status
