@@ -373,6 +373,9 @@ class Bridge(object):
             LOG.info('For current Jira-state %s, possible statuses is: %s, List of moving statuses %s ',
                      status_name_issue, available_transitions, workflow)
 
+            if not owned:
+                workflow = ['Skip', ]
+
             for status in workflow:
                 if status == 'Skip':
                     continue
@@ -388,6 +391,11 @@ class Bridge(object):
 
         else:
             new_sf_status = self.map_status_jira_sf(status_name_issue)
+
+            if (not owned and ticket['Status__c'] in self.sf_ticket_solve_status and
+                new_sf_status not in self.sf_ticket_solve_status):
+                pass
+
             if not owned and status_name_issue not in self.jira_solved_statuses:
                 return status_name_issue, ticket['Status__c']
 
