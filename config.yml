@@ -1,5 +1,6 @@
 
 
+
 assignee_sf_name:
   - Symantec
   - JiraBot
@@ -120,12 +121,12 @@ sf_initial_comment_format: |
   \\
   {{ jira_url }}/browse/{{ issue.key }}
   \\
-  SF ticket number is {{ case_id }} .
+  SF case number is {{ case_id }} .
   \\
 
 
 # String for search and change SF ticket number in description for followed-up ticket
-sf_ticket_number_search: "SF ticket number is (.+?) ."
+sf_ticket_number_search: "SF case number is (.+?) ."
 
 # Format used when creating followup tickets in SF
 sf_followup_comment_format: |

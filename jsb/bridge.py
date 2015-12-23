@@ -377,7 +377,7 @@ class Bridge(object):
             LOG.info('For current Jira-state %s, possible statuses is: %s, List of moving statuses %s ',
                      status_name_issue, available_transitions, workflow)
 
-            if not owned:
+            if not owned and ticket['Status__c'] == 'On Hold':
                 workflow = ['Skip', ]
 
             for status in workflow:
