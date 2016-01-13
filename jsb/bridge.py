@@ -166,7 +166,7 @@ class Bridge(object):
         return result['id']
 
     def _description_followup_ticket(self, description, ticket):
-        case_id = '0000'  # ticket['Case_id']
+        case_id = ticket['CaseNumber__c']
         if description == '':
             return description
         try:
@@ -205,7 +205,7 @@ class Bridge(object):
 
         result = self.sfdc_client.create_ticket(data)
         ticket = self.sfdc_client.ticket(result['id'])
-        case_id = '0000'  # ticket['Case_id']
+        case_id = ticket['CaseNumber__c']
         comment = self.sf_initial_comment_format.render(issue=issue,
                                                         jira_url=self.jira_url,
                                                         case_id=case_id)
@@ -396,10 +396,6 @@ class Bridge(object):
         else:
             new_sf_status = self.map_status_jira_sf(status_name_issue)
 
-            # if (not owned and ticket['Status__c'] in self.sf_ticket_solve_status and
-            #     new_sf_status not in self.sf_ticket_solve_status):
-            #     pass
-
             if new_sf_status in self.sf_ticket_solve_status:
                 data = {
                     'Status__c': new_sf_status
@@ -418,19 +414,6 @@ class Bridge(object):
                     'Status__c': new_sf_status
                 }
 
-            # if not owned and status_name_issue not in self.jira_solved_statuses:
-            #     return status_name_issue, ticket['Status__c']
-            #
-            # if (ticket['Status__c'] in self.sf_ticket_solve_status and
-            #     new_sf_status not in self.sf_ticket_solve_status):
-            #     data = {
-            #         'Status__c': self.jira_possible_status['New']
-            #     }
-            #     new_sf_status = self.jira_possible_status['New']
-            # else:
-            #     data = {
-            #         'Status__c': new_sf_status
-            #     }
             self.sfdc_client.update_ticket(ticket['Id'], data)
             LOG.debug('Updated ticket status: %s', ticket['Id'])
             return status_name_issue, new_sf_status
