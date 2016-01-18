@@ -147,6 +147,7 @@ class Bridge(object):
                 'Description__c': description,
                 }
         self.sfdc_client.update_ticket(ticket['Id'], data)
+        issue.update(fields={self.jira_description_field: description})
 
         data = {
                 'Comment__c': comment,
