@@ -44,7 +44,7 @@ class Bridge(object):
 
     def sync_issues(self):
         LOG.debug('Querying JIRA: %s', self.issue_jql)
-        for issue in self.jira_client.search_issues(self.issue_jql, fields='assignee,attachment,comment,*navigable'):
+        for issue in self.jira_client.search_issues(self.issue_jql, maxResults=300, fields='assignee,attachment,comment,*navigable'):
 
             try:
                 self.sync_issue(issue)
