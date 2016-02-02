@@ -1,6 +1,5 @@
 
 
-
 assignee_sf_name:
   - Symantec
   - JiraBot
@@ -11,7 +10,10 @@ symantec_assignee_username: Wayland_Shiu
 storage_dir: /tmp
 
 # JQL for matching issues
-jira_issue_jql: 'project = CFS AND ("Responsible Team" = "Openstack" or "Responsible Team" = "OBS" or zd_reference IS NOT EMPTY) AND SFDC-JIRA~234'
+#jira_issue_jql: 'project = CFS AND ("Responsible Team" = "Openstack" or "Responsible Team" = "OBS" or zd_reference IS NOT EMPTY) AND SFDC-JIRA~234'
+#jira_issue_jql: 'project = CFS AND ("Responsible Team" = "Openstack" or "Responsible Team" = "OBS" or zd_reference IS NOT EMPTY) AND SFDC-JIRA IS NULL'
+#jira_issue_jql: 'project = CFS AND ("Responsible Team" = "Openstack" or "Responsible Team" = "OBS" or zd_reference IS NOT EMPTY) AND id=CFS-848'
+jira_issue_jql: 'project = CFS AND ("Responsible Team" = "Openstack" or "Responsible Team" = "OBS" or zd_reference IS NOT EMPTY)'
 
 # Issue field used to hold reference to the SFDC case ID
 #jira_reference_field: customfield_10100
@@ -139,6 +141,7 @@ sf_followup_comment_format: |
 
 
 # Format used when creating comments in SF
+# {{ comment.body|truncate(9900, False, "...part of the message has been removed...") }}
 sf_comment_format: |
   Issue updated by {{ comment.author.displayName }} on {{ comment.created }}
   \\
