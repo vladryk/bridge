@@ -341,6 +341,7 @@ class Bridge(object):
 
     def new_process_sync_status(self, issue, ticket, jira_status_changed, sf_status_changed):
         owned = issue.fields.assignee.name == self.jira_identity
+        real_owner = issue.fields.assignee.name
         status_name_issue = issue.fields.status.name
 
         if self.force_assignee and not sf_status_changed and not jira_status_changed:
@@ -392,6 +393,7 @@ class Bridge(object):
                 LOG.info('Now, possible statuses: %s ', available_transitions)
 
             issue = self.refresh_issue(issue)
+            self._revert_assignee(issue, real_owner)
             return issue.fields.status.name, ticket['Status__c']
 
         else:
@@ -464,3 +466,7 @@ class Bridge(object):
         Refresh issue from the JIRA API
         """
         return self.jira_client.issue(issue.key, fields='assignee,attachment,comment,*navigable')
+
+    def _revert_assignee(self, issue, real_owner):
+        if real_owner != getattr(issue.fields.assignee, 'name', None):
+            self.jira_client.assign_issue(issue, real_owner)
