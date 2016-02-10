@@ -49,8 +49,8 @@ def main():
     
     sfdc_client = Client(sfdc_oauth2)
 
-    storage_path = os.path.join(config['storage_dir'], 'state.yml')
-    tmp_path = os.path.join(config['storage_dir'], 'tmp_state.yml')
+    storage_path = os.path.join(config['storage_dir'], 'state_cftest.yml')
+    tmp_path = os.path.join(config['storage_dir'], 'tmp_state_cftest.yml')
 
     store = Store(FileBackend(storage_path, tmp_path))
 

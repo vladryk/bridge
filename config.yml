@@ -13,7 +13,7 @@ storage_dir: /tmp
 #jira_issue_jql: 'project = CFS AND ("Responsible Team" = "Openstack" or "Responsible Team" = "OBS" or zd_reference IS NOT EMPTY) AND SFDC-JIRA~234'
 #jira_issue_jql: 'project = CFS AND ("Responsible Team" = "Openstack" or "Responsible Team" = "OBS" or zd_reference IS NOT EMPTY) AND SFDC-JIRA IS NULL'
 #jira_issue_jql: 'project = CFS AND ("Responsible Team" = "Openstack" or "Responsible Team" = "OBS" or zd_reference IS NOT EMPTY) AND id=CFS-848'
-jira_issue_jql: 'project = CFS AND ("Responsible Team" = "Openstack" or "Responsible Team" = "OBS" or zd_reference IS NOT EMPTY)'
+jira_issue_jql: 'project = CFTEST AND ("Responsible Team" = "Openstack" or "Responsible Team" = "OBS" or zd_reference IS NOT EMPTY)'
 
 # Issue field used to hold reference to the SFDC case ID
 #jira_reference_field: customfield_10100

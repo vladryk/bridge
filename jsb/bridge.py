@@ -341,7 +341,7 @@ class Bridge(object):
 
     def new_process_sync_status(self, issue, ticket, jira_status_changed, sf_status_changed):
         owned = issue.fields.assignee.name == self.jira_identity
-        real_owner = issue.fields.assignee.name
+        real_owner = self.refresh_issue(issue).fields.assignee.name
         status_name_issue = issue.fields.status.name
 
         if self.force_assignee and not sf_status_changed and not jira_status_changed:
@@ -422,9 +422,14 @@ class Bridge(object):
             return status_name_issue, new_sf_status
 
     def sync_assignee(self, issue, ticket):
+        LOG.info('START ASSIGNEE for ticket-id %s and issue %s', ticket['Id'], issue.key)
+
         self.force_assignee = False
         last_seen_jira_assignee = self.store.get('last_seen_jira_assignee:{}'.format(issue.key))
         last_seen_sf_assignee = self.store.get('last_seen_sf_assignee:{}'.format(ticket['Id']))
+
+        LOG.info('jira-issue %s ; last_seen_jira_assignee %s', issue.key, last_seen_jira_assignee)
+        LOG.info('ticket-id %s ; last_seen_sf_assignee %s', ticket['Id'], last_seen_sf_assignee)
 
         if issue.fields.assignee:
             LOG.debug('JIRA issue assigned: %s', issue.fields.assignee.name)
@@ -436,6 +441,9 @@ class Bridge(object):
 
         ticket_assignee_name = current_ticket_assignee_name = ticket['Assignee__c']
         jira_assignee_name = getattr(issue.fields.assignee, 'name', None)
+
+        LOG.info('ticket-id %s ; ticket_assignee_name %s', ticket['Id'], ticket_assignee_name)
+        LOG.info('jira-issue %s ; jira_assignee_name %s', issue.key, jira_assignee_name)
 
         if issue.fields.assignee.name != last_seen_jira_assignee:
             if jira_assignee_name != self.jira_identity:
