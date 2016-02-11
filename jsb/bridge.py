@@ -371,6 +371,12 @@ class Bridge(object):
 
         if sf_status_changed and not jira_status_changed:
             workflow = self.reference_jira_sf_statuses.get(status_name_issue).get(ticket['Status__c'])
+
+            # If we (L1/L2) try to move case to solve-status, when it has Symantec-asignee
+            if (real_owner != self.jira_identity) and (ticket['Status__c'] in self.sf_ticket_solve_status):
+                self.jira_client.assign_issue(issue, self.jira_identity)
+                #issue = self.refresh_issue(issue)
+
             if not workflow:
                 LOG.info('Not found schema. Current Jira status: %s,'
                          ' SF status: %s', status_name_issue, ticket['Status__c'])
