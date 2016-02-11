@@ -442,9 +442,6 @@ class Bridge(object):
         ticket_assignee_name = current_ticket_assignee_name = ticket['Assignee__c']
         jira_assignee_name = getattr(issue.fields.assignee, 'name', None)
 
-        LOG.info('ticket-id %s ; ticket_assignee_name %s', ticket['Id'], ticket_assignee_name)
-        LOG.info('jira-issue %s ; jira_assignee_name %s', issue.key, jira_assignee_name)
-
         if issue.fields.assignee.name != last_seen_jira_assignee:
             if jira_assignee_name != self.jira_identity:
                 ticket_assignee_name = self.assignee_sf_name[0]
@@ -465,6 +462,10 @@ class Bridge(object):
             elif ticket['Assignee__c'] == self.assignee_sf_name[0]:
                 jira_assignee_name = self.symantec_assignee_username
             self.jira_client.assign_issue(issue, jira_assignee_name)
+
+        LOG.info('ticket-id %s ; ticket_assignee_name %s', ticket['Id'], ticket_assignee_name)
+        LOG.info('jira-issue %s ; jira_assignee_name %s', issue.key, jira_assignee_name)
+        LOG.info('FINISHED ASSIGNEE for ticket-id %s and issue %s', ticket['Id'], issue.key)
 
         self.store.set('last_seen_jira_assignee:{}'.format(issue.key), jira_assignee_name)
         self.store.set('last_seen_sf_assignee:{}'.format(ticket['Id']), ticket_assignee_name)
