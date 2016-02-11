@@ -410,6 +410,18 @@ class Bridge(object):
                     'Status__c': new_sf_status
                 }
 
+            elif status_name_issue in ['Waiting Support', 'Waiting Reporter']:
+                if real_owner != self.jira_identity:
+                    new_sf_status = 'On Hold'
+                    data = {
+                        'Status__c': new_sf_status
+                    }
+                else:
+                    new_sf_status = 'Open'
+                    data = {
+                        'Status__c': new_sf_status
+                    }
+
             elif ticket['Status__c'] == 'On Hold' and not owned:
                 return status_name_issue, ticket['Status__c']
 
