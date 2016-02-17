@@ -17,6 +17,7 @@ class Bridge(object):
         self.fallback_priority = config['jira_fallback_priority']
 
         self.jira_reference_field = config['jira_reference_field']
+        self.jira_sf_case_number_field = config['jira_sf_case_number_field']
 
         self.jira_identity = jira_client.current_user()
         self.jira_solved_statuses = config['jira_solved_statuses']
@@ -130,7 +131,7 @@ class Bridge(object):
                                                          jira_url=self.jira_url)
         data = {
             'Subject__c': issue.fields.summary,
-            'Description__c': '',
+            'Description__c': getattr(issue.fields, 'description', ''),
             'External_id__c': issue.key,
             'Requester__c': reporter,
             'Assignee__c': assignee_name,
@@ -142,12 +143,12 @@ class Bridge(object):
         LOG.debug('Successful create new ticket %s,  for old issue %s', result['id'], issue.key)
 
         ticket = self.sfdc_client.ticket(result['id'])
-        description = self._description_followup_ticket(getattr(issue.fields, 'description', ''), ticket)
-        data = {
-                'Description__c': description,
-                }
-        self.sfdc_client.update_ticket(ticket['Id'], data)
-        issue.update(fields={self.jira_description_field: description})
+        # description = self._description_followup_ticket(getattr(issue.fields, 'description', ''), ticket)
+        # data = {
+        #         'Description__c': description,
+        #         }
+        # self.sfdc_client.update_ticket(ticket['Id'], data)
+        issue.update(fields={self.jira_sf_case_number_field: ticket['CaseNumber__c']})
 
         data = {
                 'Comment__c': comment,
@@ -207,12 +208,13 @@ class Bridge(object):
         result = self.sfdc_client.create_ticket(data)
         ticket = self.sfdc_client.ticket(result['id'])
         case_id = ticket['CaseNumber__c']
-        comment = self.sf_initial_comment_format.render(issue=issue,
-                                                        jira_url=self.jira_url,
-                                                        case_id=case_id)
+        description = self.sf_initial_comment_format.render(issue=issue,
+                                                        jira_url=self.jira_url)
         LOG.info('Successful create ticket %s,  for issue %s', result['id'], issue.key)
-        issue.update(fields={self.jira_description_field: comment,
-                             self.jira_summary_field: summary})
+        issue.update(fields={self.jira_description_field: description,
+                             self.jira_summary_field: summary,
+                             self.jira_sf_case_number_field: case_id
+                             })
 
         self.store.set('last_seen_jira_status:{}'.format(issue.key), issue.fields.status.name)
         self.store.set('last_seen_sf_status:{}'.format(ticket['Id']), self.jira_possible_status['New'])

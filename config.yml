@@ -1,5 +1,6 @@
 
 
+
 assignee_sf_name:
   - Symantec
   - JiraBot
@@ -18,10 +19,7 @@ jira_issue_jql: 'project = CFTEST AND ("Responsible Team" = "Openstack" or "Resp
 # Issue field used to hold reference to the SFDC case ID
 #jira_reference_field: customfield_10100
 jira_reference_field: customfield_13000
-
-
-
-
+jira_sf_case_number_field: customfield_13300
 jira_description_field: description
 jira_summary_field: summary
 
@@ -122,8 +120,6 @@ sf_initial_comment_format: |
   ---
   \\
   {{ jira_url }}/browse/{{ issue.key }}
-  \\
-  SF case number is {{ case_id }} .
   \\
 
 
