@@ -1,6 +1,5 @@
 
 
-
 assignee_sf_name:
   - Symantec
   - JiraBot
@@ -91,6 +90,8 @@ reference_jira_sf_statuses:
     Closed:
       - Start Investigation
       - Resolve
+    Pending:
+      - Skip
   Support Investigating:
     Open:
       - Skip

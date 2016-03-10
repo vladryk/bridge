@@ -375,7 +375,7 @@ class Bridge(object):
             workflow = self.reference_jira_sf_statuses.get(status_name_issue).get(ticket['Status__c'])
 
             # If we (L1/L2) try to move case to solve-status, when it has Symantec-asignee
-            if (real_owner != self.jira_identity) and (ticket['Status__c'] in self.sf_ticket_solve_status):
+            if (real_owner != self.jira_identity) and (ticket['Status__c'] in self.sf_ticket_solve_status or ticket['Status__c'] == 'Pending'):
                 self.jira_client.assign_issue(issue, self.jira_identity)
                 #issue = self.refresh_issue(issue)
 
@@ -387,7 +387,7 @@ class Bridge(object):
             LOG.info('For current Jira-state %s, possible statuses is: %s, List of moving statuses %s ',
                      status_name_issue, available_transitions, workflow)
 
-            if not owned and ticket['Status__c'] == 'On Hold':
+            if (real_owner != self.jira_identity) and ticket['Status__c'] == 'On Hold':
                 workflow = ['Skip', ]
 
             for status in workflow:
@@ -412,7 +412,7 @@ class Bridge(object):
                     'Status__c': new_sf_status
                 }
 
-            elif status_name_issue in ['Waiting Support', 'Waiting Reporter']:
+            elif status_name_issue in ['Waiting Support', 'Waiting Reporter', 'Support Investigating']:
                 if real_owner != self.jira_identity:
                     new_sf_status = 'On Hold'
                     data = {
